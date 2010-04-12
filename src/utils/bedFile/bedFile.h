@@ -22,7 +22,8 @@
 #include <algorithm>
 #include <limits.h>
 #include <cstdio>
-//#include <tr1/unordered_map>
+#include "gzstream.h"
+
 using namespace std;
 
 //*************************************************
@@ -52,12 +53,12 @@ struct BED {
 
 	// UCSC BED fields
 	string chrom;
-	int start;
-	int end; 
+	int    start;
+	int    end; 
 	string name;
 	string score;
 	string strand;
-	
+
 	vector<string> otherFields;
 
 	// Additional fields
@@ -73,8 +74,9 @@ struct BED {
 int getBin(int start, int end);
 
 	
-// return the amount of overlap between two features.  Negative if none and the the 
-// number of negative bases is the distance between the two.
+// Return the amount of overlap between two features.  
+//    Negative if no overlap and in such cases,
+//    negative bases is the distance between the two.
 inline 
 int overlaps(int aS, int aE, int bS, int bE) {
 	return min(aE, bE) - max(aS, bS);
@@ -119,17 +121,12 @@ bool byChromThenStart(BED const &a, BED const &b);
 //*************************************************
 // Common typedefs
 //*************************************************
-typedef vector<BED> bedVector;
-
-typedef map<int, vector<BED>, std::less<int> > binsToBeds;
-//typedef tr1::unordered_map<int, vector<BED> > binsToBeds;
-
-typedef map<string, binsToBeds, std::less<string> > masterBedMap;
-//typedef tr1::unordered_map<string, binsToBeds> masterBedMap;
-
-//typedef map<string, bedVector, std::less<string> > masterBedMap;
-
+typedef vector<BED>                                  bedVector;
+typedef map<int, vector<BED>, std::less<int> >       binsToBeds;
+typedef map<string, binsToBeds, std::less<string> >  masterBedMap;
 typedef map<string, vector<BED>, std::less<string> > masterBedMapNoBin;
+
+
 
 
 //************************************************
@@ -140,16 +137,31 @@ class BedFile {
 public:
 
 	// Constructor 
-	BedFile(string &);
+	BedFile(string &bedFile);
 
 	// Destructor
 	~BedFile(void);
+	
+	// Open a BED file for reading line-by-line
+	void Open(void);
 
-	// load a BED file into a map keyed by chrom, then bin. value is vector of BEDs
+	// Retrieve the next BED line in a BED file.
+	//    - Returns TRUE if valid BED entry.
+	//    - Returns FALSE if invalid entry OR
+	//      EOF is reached.
+	bool GetNextBed(BED &bed, int &lineNum);
+
+	// Closes a BED file 
+	void Close(void);
+	
+	// opens and loads a BED file into a map keyed by 
+	// chrom, then bin. value is vector of BEDs
 	void loadBedFileIntoMap();
 
-	// load a BED file into a map keyed by chrom. value is vector of BEDs
+	// opens and loads a BED file into a map keyed by 
+	// chrom. value is vector of BEDs
 	void loadBedFileIntoMapNoBin();	
+
 
 	// Given a chrom, start, end and strand for a single feature,
 	// search for all overlapping features in another BED file.
@@ -180,13 +192,13 @@ public:
 	// parse an input line and determine how it should be handled
 	bool parseLine (BED &bed, const vector<string> &lineVector, int &lineNum);
 		
-
 	// the bedfile with which this instance is associated
 	string bedFile;
 	unsigned int bedType;  // 3-6, 12 for BED
 						   // 9 for GFF
 						
 	bool isGff;
+	bool isGzip;
 	masterBedMap bedMap;
 	masterBedMapNoBin bedMapNoBin;
 	
@@ -199,6 +211,17 @@ private:
 	bool parseGffLine (BED &bed, const vector<string> &lineVector, int lineNum);
 	
 	void setGff (bool isGff);
+	
+	void setGzip (bool isGzip);
+	
+	void SetBedStream(istream &bedStream);
+
+	bool GetNextBedGzip (BED &bed, int &lineNum);
+	
+	void OpenPrivate(void);
+		
+	istream    *bedStream;
+	//igzstream  *bedGzipStream;
 };
 
 #endif /* BEDFILE_H */

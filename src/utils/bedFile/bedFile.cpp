@@ -95,6 +95,94 @@ int getBin(int start, int end) {
 }
 
 
+
+/*******************************************
+Class methods
+*******************************************/
+
+// Constructor
+BedFile::BedFile(string &bedFile)
+: bedFile(bedFile)
+{}
+
+// Destructor
+BedFile::~BedFile(void) {
+}
+
+
+void BedFile::Open(void) {
+	OpenPrivate();
+}
+
+// Open the BED file for reading
+void BedFile::OpenPrivate(void) {
+	size_t foundPos;
+  	foundPos = bedFile.find_last_of(".gz");
+	// is this a GZIPPED BED file?
+	if (foundPos == bedFile.size() - 1) {
+		igzstream beds(bedFile.c_str(), ios::in);
+		if ( !beds ) {
+			cerr << "Error: The requested bed file (" << bedFile << ") could not be opened. Exiting!" << endl;
+			exit (1);
+		}
+	}  
+	// not GZIPPED.
+	else {	
+		ifstream beds(bedFile.c_str(), ios::in);
+		if ( !beds ) {
+			cerr << "Error: The requested bed file (" << bedFile << ") could not be opened. Exiting!" << endl;
+			exit (1);
+		}
+		bedStream = &beds;
+	}
+}
+
+
+void BedFile::SetBedStream(istream &stream) {
+	//string bedLine;
+	//vector<string> bedFields;
+	
+	//getline(stream, bedLine);
+	//cout << bedLine << endl;
+	//bedStream = stream;
+}
+
+
+// Close the BED file
+void BedFile::Close(void) {
+	
+}
+
+
+bool BedFile::GetNextBed (BED &bed, int &lineNum) {
+
+	bedStream->open();
+	if (bedStream->good()) {
+		cout << "yep" << endl;
+		string bedLine;
+		vector<string> bedFields;
+
+		getline(*bedStream, bedLine);
+		cout << bedLine << endl;
+		lineNum++;
+
+		Tokenize(bedLine,bedFields);
+
+		if (parseLine(bed, bedFields, lineNum)) {
+			return true;
+		}
+		return false;
+	}
+}
+
+
+/*
+bool BedFile::GetNextBedGzip (void) {
+	
+
+}
+*/
+
 void BedFile::FindOverlapsPerBin(string chrom, int start, int end, string strand, vector<BED> &hits, bool forceStrand) {
 
 	int startBin, endBin;
@@ -261,22 +349,6 @@ void BedFile::countHits(const BED &a, bool forceStrand) {
 		startBin >>= _binNextShift;
 		endBin >>= _binNextShift;
 	}
-}
-
-
-
-
-/*******************************************
-Class methods
-*******************************************/
-
-// Constructor
-BedFile::BedFile(string &bedFile) {
-	this->bedFile = bedFile;
-}
-
-// Destructor
-BedFile::~BedFile(void) {
 }
 
 

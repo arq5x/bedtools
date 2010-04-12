@@ -264,12 +264,27 @@ void BedIntersect::DetermineBedInput() {
 	
 	if (bedA->bedFile != "stdin") {   // process a file
 		if (this->bamInput == false) { //bed/gff
-			ifstream beds(bedA->bedFile.c_str(), ios::in);
+			
+/*			
+			// NEW
+			igzstream beds(bedA->bedFile.c_str(), ios::in);
 			if ( !beds ) {
 				cerr << "Error: The requested bed file (" << bedA->bedFile << ") could not be opened. Exiting!" << endl;
 				exit (1);
 			}
-			IntersectBed(beds);
+			string line;;
+			while (getline(beds,line)) {
+				cout << line << endl;
+			}
+			
+			// OLD
+			//ifstream beds(bedA->bedFile.c_str(), ios::in);
+			//if ( !beds ) {
+			//	cerr << "Error: The requested bed file (" << bedA->bedFile << ") could not be opened. Exiting!" << endl;
+			//	exit (1);
+			//}
+			//IntersectBed(beds);
+			*/
 		}
 		else {	// bam
 			IntersectBam(bedA->bedFile);
