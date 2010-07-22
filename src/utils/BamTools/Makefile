@@ -2,12 +2,12 @@ OBJ_DIR = ../../../obj/
 BIN_DIR = ../../../bin/
 UTILITIES_DIR = ../
 
-INCLUDES = -I$(UTILITIES_DIR)/bedFile/ -I$(UTILITIES_DIR)/lineFileUtilities/ -I$(UTILITIES_DIR)/gzstream/ -I$(UTILITIES_DIR)/fileType/
+INCLUDES = -I$(UTILITIES_DIR)/bedFile/ -I$(UTILITIES_DIR)/lineFileUtilities/ -I$(UTILITIES_DIR)/gzstream/ -I$(UTILITIES_DIR)/fileType/ -I$(UTILITIES_DIR)/curl
 
 # ----------------------------------
 # define our source and object files
 # ----------------------------------
-SOURCES= BamReader.cpp BamWriter.cpp	BGZF.cpp BamAncillary.cpp 
+SOURCES= BamReader.cpp BamIndex.cpp BamWriter.cpp	BGZF.cpp BamAncillary.cpp 
 OBJECTS= $(SOURCES:.cpp=.o)
 BUILT_OBJECTS= $(patsubst %,$(OBJ_DIR)/%,$(OBJECTS))
 
