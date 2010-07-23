@@ -15,17 +15,15 @@
 
 BedSlop::BedSlop(string &bedFile, string &genomeFile, bool &forceStrand, int &leftSlop, int &rightSlop) {
 
-	_bedFile = bedFile;
-	_genomeFile = genomeFile;
-	_forceStrand = forceStrand;
+	this->bedFile = bedFile;
+	this->genomeFile = genomeFile;
+	this->forceStrand = forceStrand;
 	
-	_leftSlop = leftSlop;
-	_rightSlop = rightSlop;
+	this->leftSlop = leftSlop;
+	this->rightSlop = rightSlop;
 	
-	_bed    = new BedFile(bedFile);
-	_genome = new GenomeFile(genomeFile);
-	
-	SlopBed();
+	this->bed    = new BedFile(bedFile);
+	this->genome = new GenomeFile(genomeFile);	
 }
 
 
@@ -34,23 +32,23 @@ BedSlop::~BedSlop(void) {
 }
 
 
-void BedSlop::SlopBed() {
+void BedSlop::SlopBed(istream &bedInput) {
 	
 	int lineNum = 0;
-	BED bedEntry, nullBed;     // used to store the current BED line from the BED file.
-	BedLineStatus bedStatus;
-	
-	_bed->Open();
-	bedStatus = _bed->GetNextBed(bedEntry, lineNum);
-	while (bedStatus != BED_INVALID) {
-		if (bedStatus == BED_VALID) {
+	string bedLine;	  // used to store the current (unparsed) line from the BED file.
+		
+	while (getline(bedInput, bedLine)) {
+		
+		vector<string> bedFields;
+		Tokenize(bedLine,bedFields);
+		lineNum++;
+		
+		BED bedEntry;     // used to store the current BED line from the BED file.
+		if (this->bed->parseLine(bedEntry, bedFields, lineNum)) {
 			AddSlop(bedEntry);
-			_bed->reportBedNewLine(bedEntry);
-			bedEntry = nullBed;	
+			bed->reportBedNewLine(bedEntry);			
 		}
-		bedStatus = _bed->GetNextBed(bedEntry, lineNum);				
 	}
-	_bed->Close();
 }
 
 
@@ -58,26 +56,40 @@ void BedSlop::AddSlop(BED &bed) {
 
 	// special handling if the BED entry is on the negative
 	// strand and the user cares about strandedness.
-	CHRPOS chromSize = _genome->getChromSize(bed.chrom);
+	int chromSize = genome->getChromSize(bed.chrom);
 	
-	if ( (_forceStrand) && (bed.strand == "-") ) {
+	if ( (this->forceStrand) && (bed.strand == "-") ) {
 		// inspect the start
-		if ((bed.start - _rightSlop) > 0) bed.start -= _rightSlop;
+		if ((bed.start - rightSlop) > 0) bed.start -= rightSlop;
 		else bed.start = 0;
 
 		// inspect the start		
-		if ((bed.end + _leftSlop) <= chromSize) bed.end += _leftSlop;
+		if ((bed.end + leftSlop) <= chromSize) bed.end += leftSlop;
 		else bed.end = chromSize;
 	}
 	else {		
 		// inspect the start
-		if ((bed.start - _leftSlop) > 0) bed.start -= _leftSlop;
+		if ((bed.start - leftSlop) > 0) bed.start -= leftSlop;
 		else bed.start = 0;
 		
 		// inspect the end
-		if ((bed.end + _rightSlop) <= chromSize) bed.end += _rightSlop;
+		if ((bed.end + rightSlop) <= chromSize) bed.end += rightSlop;
 		else bed.end = chromSize;
 	}
 }
 
 
+void BedSlop::DetermineBedInput() {
+
+	if (this->bedFile != "stdin") {   // process a file
+		ifstream beds(this->bedFile.c_str(), ios::in);
+		if ( !beds ) {
+			cerr << "Error: The requested bed file (" << this->bedFile << ") could not be opened. Exiting!" << endl;
+			exit (1);
+		}
+		SlopBed(beds);
+	}
+	else {   // process stdin
+		SlopBed(cin);		
+	}
+}

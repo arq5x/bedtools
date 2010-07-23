@@ -124,7 +124,7 @@ void ShowHelp(void) {
 	
 	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -i <input> -cols s1,e1,s2,e2 " << endl << endl;
 
-	cerr << "Options: " << endl;
+	cerr << "Notes: " << endl;
 	cerr << "\t-i\t"	    << "Input file. Use \"stdin\" for pipes." << endl << endl;
 	
 	cerr << "\t-cols\t"		<< "Specify the columns (1-based) for the starts and ends of the" << endl;
@@ -133,10 +133,10 @@ void ShowHelp(void) {
 	cerr					<< "\t\tstart1,end1,start2,end2" << endl << endl;	
 
 	cerr << "Example: " << endl;
-	cerr << "\t$ windowBed -a A.bed -b B.bed -w 10" << endl;
+	cerr << "\t$ cat test.out" << endl;
 	cerr << "\tchr1	10	20	A	chr1	15	25	B" << endl;
 	cerr << "\tchr1	10	20	C	chr1	25	35	D" << endl << endl;
-	cerr << "\t$ windowBed -a A.bed -b B.bed -w 10 | overlap -i stdin -cols 2,3,6,7" << endl;
+	cerr << "\t$ cat test.out | overlaps -i stdin -cols 2,3,6,7" << endl;
 	cerr << "\tchr1	10	20	A	chr1	15	25	B	5" << endl;
 	cerr << "\tchr1	10	20	C	chr1	25	35	D	-5" << endl;
 	

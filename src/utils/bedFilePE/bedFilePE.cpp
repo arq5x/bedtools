@@ -15,6 +15,63 @@
 #include "bedFilePE.h"
 
 
+/*
+	Adapted from kent source "binKeeperFind"
+*/
+void BedFilePE::FindOverlapsPerBin(int bEnd, string chrom, int start, int end, string strand, vector<BED> &hits, bool forceStrand) {
+
+	int startBin, endBin;
+	startBin = (start >> _binFirstShift);
+	endBin = ((end-1) >> _binFirstShift);
+
+	// loop through each bin "level" in the binning hierarchy
+	for (int i = 0; i < 6; ++i) {
+		
+		// loop through each bin at this level of the hierarchy
+		int offset = binOffsetsExtended[i];
+		for (int j = (startBin+offset); j <= (endBin+offset); ++j)  {
+			
+			// loop through each feature in this chrom/bin and see if it overlaps
+			// with the feature that was passed in.  if so, add the feature to 
+			// the list of hits.
+			vector<BED>::const_iterator bedItr;
+			vector<BED>::const_iterator bedEnd;
+			if (bEnd == 1) {
+				bedItr = bedMapEnd1[chrom][j].begin();
+				bedEnd = bedMapEnd1[chrom][j].end();
+			}
+			else if (bEnd == 2) {
+				bedItr = bedMapEnd2[chrom][j].begin();
+				bedEnd = bedMapEnd2[chrom][j].end();				
+			}
+			else {
+				cerr << "Unexpected end of B requested" << endl;
+			}
+			for (; bedItr != bedEnd; ++bedItr) {
+				
+				// skip the hit if not on the same strand (and we care)
+				if (forceStrand && (strand != bedItr->strand)) {
+					continue;
+				}
+				else if (overlaps(bedItr->start, bedItr->end, start, end) > 0) {
+					hits.push_back(*bedItr);	// it's a hit, add it.
+				}
+							
+			}
+		}
+		startBin >>= _binNextShift;
+		endBin >>= _binNextShift;
+	}
+}
+
+
+
+
+
+//***********************************************
+// Common functions
+//***********************************************
+
 // Constructor
 BedFilePE::BedFilePE(string &bedFile) {
 	this->bedFile = bedFile;
@@ -22,80 +79,6 @@ BedFilePE::BedFilePE(string &bedFile) {
 
 // Destructor
 BedFilePE::~BedFilePE(void) {
-}
-
-void BedFilePE::Open(void) {
-	if (bedFile == "stdin") {
-		_bedStream = &cin;
-	}
-	else {
-		size_t foundPos;
-	  	foundPos = bedFile.find_last_of(".gz");
-		// is this a GZIPPED BED file?
-		if (foundPos == bedFile.size() - 1) {
-			igzstream beds(bedFile.c_str(), ios::in);
-			if ( !beds ) {
-				cerr << "Error: The requested bedpe file (" << bedFile << ") could not be opened. Exiting!" << endl;
-				exit (1);
-			}
-			else {
-				// if so, close it (this was just a test)
-				beds.close();		
-				// now set a pointer to the stream so that we
-				// can read the file later on.
-				// Thank God for Josuttis, p. 631!
-				_bedStream = new igzstream(bedFile.c_str(), ios::in);
-			}
-		}  
-		// not GZIPPED.
-		else {
-		
-			ifstream beds(bedFile.c_str(), ios::in);
-			// can we open the file?
-			if ( !beds ) {
-				cerr << "Error: The requested bed file (" << bedFile << ") could not be opened. Exiting!" << endl;
-				exit (1);
-			}
-			else {
-				// if so, close it (this was just a test)
-				beds.close();		
-				// now set a pointer to the stream so that we
-				// can read the file later on.
-				// Thank God for Josuttis, p. 631!
-				_bedStream = new ifstream(bedFile.c_str(), ios::in);
-			}
-		}
-	}
-}
-
-
-// Close the BEDPE file
-void BedFilePE::Close(void) {
-	if (bedFile != "stdin") delete _bedStream;
-}
-
-
-BedLineStatus BedFilePE::GetNextBedPE (BEDPE &bedpe, int &lineNum) {
-
-	// make sure there are still lines to process.
-	// if so, tokenize, validate and return the BEDPE entry.
-	if (_bedStream->good()) {
-		string bedPELine;
-		vector<string> bedPEFields;
-		bedPEFields.reserve(10);
-		
-		// parse the bedStream pointer
-		getline(*_bedStream, bedPELine);
-		lineNum++;
-
-		// split into a string vector.
-		Tokenize(bedPELine,bedPEFields);
-		
-		// load the BEDPE struct as long as it's a valid BEDPE entry.
-		return parseLine(bedpe, bedPEFields, lineNum);
-	}
-	// default if file is closed or EOF
-	return BED_INVALID;
 }
 
 
@@ -174,7 +157,7 @@ void BedFilePE::reportBedPENewLine(const BEDPE &a) {
 		 									a.chrom2.c_str(), a.start2, a.end2,
 											a.name.c_str(), a.score.c_str(), a.strand1.c_str(), a.strand2.c_str());
 											
-		vector<string>::const_iterator othIt  = a.otherFields.begin(); 
+		vector<string>::const_iterator othIt = a.otherFields.begin(); 
 		vector<string>::const_iterator othEnd = a.otherFields.end(); 
 		for ( ; othIt != othEnd; ++othIt) {
 			printf("%s\t", othIt->c_str());
@@ -184,37 +167,10 @@ void BedFilePE::reportBedPENewLine(const BEDPE &a) {
 }
 
 
-BedLineStatus BedFilePE::parseLine (BEDPE &bedpe, const vector<string> &lineVector, int &lineNum) {
-
-	// bail out if we have a blank line
-	if (lineVector.empty()) 
-		return BED_BLANK;
-
-	if ((lineVector[0].find("track") == string::npos) && (lineVector[0].find("browser") == string::npos) && (lineVector[0].find("#") == string::npos) ) {
-		// we need at least 6 columns
-		if (lineVector.size() >= 6) {
-			if (parseBedPELine(bedpe, lineVector, lineNum) == true)
-				return BED_VALID;
-			else return BED_INVALID;
-		}
-		else  {
-			cerr << "It looks as though you have less than 6 columns.  Are you sure your files are tab-delimited?" << endl;
-			exit(1);
-		}
-	}
-	else {
-		lineNum--;
-		return BED_HEADER;	
-	}
-
-	// default
-	return BED_INVALID;
-}
-
 
 bool BedFilePE::parseBedPELine (BEDPE &bed, const vector<string> &lineVector, const int &lineNum) {
 
-	if ((lineNum == 1) && (lineVector.size() >= 6)) {
+	if ((lineNum == 1) && (lineVector.size() >= 3)) {
 
 		this->bedType = lineVector.size();
 
@@ -297,15 +253,15 @@ bool BedFilePE::parseBedPELine (BEDPE &bed, const vector<string> &lineVector, co
 		}
 		
 		if (bed.start1 > bed.end1) {
-			cerr << "Error: malformed BEDPE entry at line " << lineNum << ". Start1 was greater than End1. Ignoring it and moving on." << endl;
+			cerr << "Error: malformed BED entry at line " << lineNum << ". Start1 was greater than End1. Ignoring it and moving on." << endl;
 			return false;
 		}
 		else if (bed.start2 > bed.end2) {
-			cerr << "Error: malformed BEDPE entry at line " << lineNum << ". Start2 was greater than End2. Ignoring it and moving on." << endl;
+			cerr << "Error: malformed BED entry at line " << lineNum << ". Start2 was greater than End2. Ignoring it and moving on." << endl;
 			return false;
 		}
 		else if ( (bed.start1 < 0) || (bed.end1 < 0) || (bed.start2 < 0) || (bed.end2 < 0) ) {
-			cerr << "Error: malformed BEDPE entry at line " << lineNum << ". Coordinate <= 0. Ignoring it and moving on." << endl;
+			cerr << "Error: malformed BED entry at line " << lineNum << ". Coordinate <= 0. Ignoring it and moving on." << endl;
 			return false;
 		}
 	}
@@ -418,90 +374,76 @@ bool BedFilePE::parseBedPELine (BEDPE &bed, const vector<string> &lineVector, co
 }
 
 
-/*
-	Adapted from kent source "binKeeperFind"
-*/
-void BedFilePE::FindOverlapsPerBin(int bEnd, string chrom, CHRPOS start, CHRPOS end, string strand, vector<BEDCOV> &hits, bool forceStrand) {
-
-	int startBin, endBin;
-	startBin = (start >> _binFirstShift);
-	endBin = ((end-1) >> _binFirstShift);
-
-	// loop through each bin "level" in the binning hierarchy
-	for (int i = 0; i < _binLevels; ++i) {
-		
-		// loop through each bin at this level of the hierarchy
-		int offset = _binOffsetsExtended[i];
-		for (int j = (startBin+offset); j <= (endBin+offset); ++j)  {
-			
-			// loop through each feature in this chrom/bin and see if it overlaps
-			// with the feature that was passed in.  if so, add the feature to 
-			// the list of hits.
-			vector<BEDCOV>::const_iterator bedItr;
-			vector<BEDCOV>::const_iterator bedEnd;
-			if (bEnd == 1) {
-				bedItr = bedMapEnd1[chrom][j].begin();
-				bedEnd = bedMapEnd1[chrom][j].end();
-			}
-			else if (bEnd == 2) {
-				bedItr = bedMapEnd2[chrom][j].begin();
-				bedEnd = bedMapEnd2[chrom][j].end();				
-			}
-			else {
-				cerr << "Unexpected end of B requested" << endl;
-			}
-			for (; bedItr != bedEnd; ++bedItr) {
-				
-				// skip the hit if not on the same strand (and we care)
-				if (forceStrand && (strand != bedItr->strand)) {
-					continue;
-				}
-				else if (overlaps(bedItr->start, bedItr->end, start, end) > 0) {
-					hits.push_back(*bedItr);	// it's a hit, add it.
-				}
-							
-			}
-		}
-		startBin >>= _binNextShift;
-		endBin >>= _binNextShift;
-	}
-}
-
-
 void BedFilePE::loadBedPEFileIntoMap() {
 
-	int lineNum = 0;
-	int bin1, bin2;
-	BedLineStatus bedStatus;
-	BEDPE bedpeEntry, nullBedPE;
-
-	Open();	
-	bedStatus = this->GetNextBedPE(bedpeEntry, lineNum);	
-	while (bedStatus != BED_INVALID) {
-		
-		if (bedStatus == BED_VALID) {
-			BEDCOV bedEntry1, bedEntry2;
-			// separate the BEDPE entry into separate
-			// BED entries
-			splitBedPEIntoBeds(bedpeEntry, lineNum, bedEntry1, bedEntry2);
-
-			// load end1 into a UCSC bin map
-			bin1 = getBin(bedEntry1.start, bedEntry1.end);
-			this->bedMapEnd1[bedEntry1.chrom][bin1].push_back(bedEntry1);	
-		
-			// load end2 into a UCSC bin map
-			bin2 = getBin(bedEntry2.start, bedEntry2.end);
-			this->bedMapEnd2[bedEntry2.chrom][bin2].push_back(bedEntry2);
-
-			bedpeEntry = nullBedPE;
-		}
-		bedStatus = this->GetNextBedPE(bedpeEntry, lineNum);
+	// open the BEDPE file for reading                                                                                                                                      
+	ifstream bed(bedFile.c_str(), ios::in);
+	if ( !bed ) {
+		cerr << "Error: The requested bed file (" <<bedFile << ") could not be opened. Exiting!" << endl;
+		exit (1);
 	}
-	Close();
+
+	string bedLine;
+	BEDPE bedpeEntry;
+	BED bedEntry1, bedEntry2;
+                                                                                                                        
+	unsigned int lineNum = 0;
+	int bin1, bin2;
+	vector<string> bedFields;	// vector of strings for each column in BED file.
+	bedFields.reserve(10);		// reserve space for worst case (BED 6)
+
+	while (getline(bed, bedLine)) {
+		lineNum++;
+		
+		if (lineNum > 1) {
+
+			Tokenize(bedLine,bedFields);
+
+			if (parseBedPELine(bedpeEntry, bedFields, lineNum)) {
+				
+				// separate the BEDPE entry into separate
+				// BED entries
+				splitBedPEIntoBeds(bedpeEntry, lineNum, bedEntry1, bedEntry2);
+
+				// load end1 into a UCSC bin map
+				bin1 = getBin(bedEntry1.start, bedEntry1.end);
+				this->bedMapEnd1[bedEntry1.chrom][bin1].push_back(bedEntry1);	
+				
+				// load end2 into a UCSC bin map
+				bin2 = getBin(bedEntry2.start, bedEntry2.end);
+				this->bedMapEnd2[bedEntry2.chrom][bin2].push_back(bedEntry2);		
+			}
+			bedFields.clear();
+
+		}
+		else {
+			if ((bedLine.find("track") != string::npos) || (bedLine.find("browser") != string::npos)) {
+				continue;
+			}
+			else {
+				Tokenize(bedLine,bedFields);
+
+				if (parseBedPELine(bedpeEntry, bedFields, lineNum)) {
+					// separate the BEDPE entry into separate
+					// BED entries
+					splitBedPEIntoBeds(bedpeEntry, lineNum, bedEntry1, bedEntry2);
+
+					// load end1 into a UCSC bin map
+					bin1 = getBin(bedEntry1.start, bedEntry1.end);
+					this->bedMapEnd1[bedEntry1.chrom][bin1].push_back(bedEntry1);	
+
+					// load end2 into a UCSC bin map
+					bin2 = getBin(bedEntry2.start, bedEntry2.end);				
+					this->bedMapEnd2[bedEntry2.chrom][bin2].push_back(bedEntry2);		
+				}
+				bedFields.clear();			
+			}
+		}
+	}
 }
 
 
-void BedFilePE::splitBedPEIntoBeds(const BEDPE &bedpeEntry, const int &lineNum, BEDCOV &bedEntry1, BEDCOV &bedEntry2) {
+void BedFilePE::splitBedPEIntoBeds(const BEDPE &bedpeEntry, unsigned int lineNum, BED &bedEntry1, BED &bedEntry2) {
 	
 	/* 
 	   Split the BEDPE entry into separate BED entries
@@ -515,22 +457,22 @@ void BedFilePE::splitBedPEIntoBeds(const BEDPE &bedpeEntry, const int &lineNum, 
 	   read-pair.
 	*/
 	
-	bedEntry1.chrom           = bedpeEntry.chrom1;
-	bedEntry1.start           = bedpeEntry.start1;
-	bedEntry1.end             = bedpeEntry.end1;
-	bedEntry1.name            = bedpeEntry.name;
-	bedEntry1.score           = bedpeEntry.score;
-	bedEntry1.strand          = bedpeEntry.strand1;
-	bedEntry1.count           = lineNum;
+	bedEntry1.chrom = bedpeEntry.chrom1;
+	bedEntry1.start = bedpeEntry.start1;
+	bedEntry1.end = bedpeEntry.end1;
+	bedEntry1.name = bedpeEntry.name;
+	bedEntry1.score = bedpeEntry.score;
+	bedEntry1.strand = bedpeEntry.strand1;
+	bedEntry1.count = lineNum;
 	bedEntry1.minOverlapStart = INT_MAX;
 	
-	bedEntry2.chrom           = bedpeEntry.chrom2;
-	bedEntry2.start           = bedpeEntry.start2;
-	bedEntry2.end             = bedpeEntry.end2;
-	bedEntry2.name            = bedpeEntry.name;
-	bedEntry2.score           = bedpeEntry.score;
-	bedEntry2.strand          = bedpeEntry.strand2;		
-	bedEntry2.count           = lineNum;
+	bedEntry2.chrom = bedpeEntry.chrom2;
+	bedEntry2.start = bedpeEntry.start2;
+	bedEntry2.end = bedpeEntry.end2;
+	bedEntry2.name = bedpeEntry.name;
+	bedEntry2.score = bedpeEntry.score;
+	bedEntry2.strand = bedpeEntry.strand2;		
+	bedEntry2.count = lineNum;
 	bedEntry2.minOverlapStart = INT_MAX;
 }
 

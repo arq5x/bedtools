@@ -18,15 +18,13 @@
 */
 BedSubtract::BedSubtract(string &bedAFile, string &bedBFile, float &overlapFraction, bool &forceStrand) {
 
-	_bedAFile = bedAFile;
-	_bedBFile = bedBFile;
-	_overlapFraction = overlapFraction;
-	_forceStrand = forceStrand;
+	this->bedAFile = bedAFile;
+	this->bedBFile = bedBFile;
+	this->overlapFraction = overlapFraction;
+	this->forceStrand = forceStrand;
 
-	_bedA = new BedFile(bedAFile);
-	_bedB = new BedFile(bedBFile);
-	
-	SubtractBed();
+	this->bedA = new BedFile(bedAFile);
+	this->bedB = new BedFile(bedBFile);
 }
 
 
@@ -37,10 +35,10 @@ BedSubtract::~BedSubtract(void) {
 }
 
 
-void BedSubtract::FindAndSubtractOverlaps(BED &a, vector<BED> &hits) {
+void BedSubtract::FindOverlaps(BED &a, vector<BED> &hits) {
 	
 	// find all of the overlaps between a and B.
-	_bedB->FindOverlapsPerBin(a.chrom, a.start, a.end, a.strand, hits, _forceStrand);
+	bedB->FindOverlapsPerBin(a.chrom, a.start, a.end, a.strand, hits, this->forceStrand);
 	
 	//  is A completely spanned by an entry in B?
 	//  if so, A should not be reported.
@@ -66,7 +64,7 @@ void BedSubtract::FindAndSubtractOverlaps(BED &a, vector<BED> &hits) {
 				numOverlaps++;
 				numConsumedByB++;
 			}
-			else if ( overlap >= _overlapFraction ) {
+			else if ( overlap >= this->overlapFraction ) {
 				numOverlaps++;
 				bOverlaps.push_back(*h);
 			}
@@ -75,7 +73,7 @@ void BedSubtract::FindAndSubtractOverlaps(BED &a, vector<BED> &hits) {
 	
 	if (numOverlaps == 0) {
 		// no overlap found, so just report A as-is.
-		_bedA->reportBedNewLine(a);
+		bedA->reportBedNewLine(a);
 	}
 	else if (numOverlaps == 1) {
 		// one overlap found.  only need to look at the single
@@ -90,26 +88,26 @@ void BedSubtract::FindAndSubtractOverlaps(BED &a, vector<BED> &hits) {
 			// B        ----
 			// Res. ====    ====					
 			if ( (theHit.start > a.start) && (theHit.end < a.end) ) {
-				_bedA->reportBedRangeNewLine(a,a.start,theHit.start);
-				_bedA->reportBedRangeNewLine(a,theHit.end,a.end);
+				bedA->reportBedRangeNewLine(a,a.start,theHit.start);
+				bedA->reportBedRangeNewLine(a,theHit.end,a.end);
 			}
 			// A	++++++++++++
 			// B    ----------
 			// Res.           ==        			
 			else if (theHit.start == a.start) {
-				_bedA->reportBedRangeNewLine(a,theHit.end,a.end);
+				bedA->reportBedRangeNewLine(a,theHit.end,a.end);
 			}	
 			// A	      ++++++++++++
 			// B    ----------
 			// Res.       ====
 			else if (theHit.start < a.start) {
-				_bedA->reportBedRangeNewLine(a,theHit.end,a.end);
+				bedA->reportBedRangeNewLine(a,theHit.end,a.end);
 			}
 			// A	++++++++++++
 			// B           ----------
 			// Res. =======
 			else if (theHit.start > a.start) {
-				_bedA->reportBedRangeNewLine(a,a.start,theHit.start);	
+				bedA->reportBedRangeNewLine(a,a.start,theHit.start);	
 			}
 		}
 	}
@@ -133,13 +131,13 @@ void BedSubtract::FindAndSubtractOverlaps(BED &a, vector<BED> &hits) {
 			// report the remaining blocks.
 			for (unsigned int i = 0; i < aKeep.size(); ++i) {
 				if (aKeep[i] == true) {
-					CHRPOS blockStart = i + a.start;
+					int blockStart = i + a.start;
 					while ((aKeep[i] == true) && (i < aKeep.size())) {
 						i++;
 					}
-					CHRPOS blockEnd = i + a.start;
+					int blockEnd = i + a.start;
 					blockEnd = min(a.end, blockEnd);
-					_bedA->reportBedRangeNewLine(a,blockStart,blockEnd);
+					bedA->reportBedRangeNewLine(a,blockStart,blockEnd);
 				}
 			}
 		}
@@ -148,30 +146,52 @@ void BedSubtract::FindAndSubtractOverlaps(BED &a, vector<BED> &hits) {
 
  
 
-void BedSubtract::SubtractBed() {
+void BedSubtract::SubtractBed(istream &bedInput) {
 
 	// load the "B" bed file into a map so
 	// that we can easily compare "A" to it for overlaps
-	_bedB->loadBedFileIntoMap();
+	bedB->loadBedFileIntoMap();
 
-	BED a, nullBed;
-	BedLineStatus bedStatus;                                                                                                                    
+	string bedLine;                                                                                                                    
 	int lineNum = 0;					// current input line number
-	vector<BED> hits;					// vector of potential hits	
+	vector<BED> hits;					// vector of potential hits
+	vector<string> bedFields;			// vector for a BED entry
+	
 	// reserve some space
 	hits.reserve(100);
+	bedFields.reserve(12);	
+		
+	// process each entry in A
+	while (getline(bedInput, bedLine)) {
 
-	_bedA->Open();	 	
-	while ((bedStatus = _bedA->GetNextBed(a, lineNum)) != BED_INVALID) {
-		if (bedStatus == BED_VALID) {
-			FindAndSubtractOverlaps(a, hits);
+		lineNum++;
+		Tokenize(bedLine,bedFields);
+		BED a;
+			
+		// find the overlaps with B if it's a valid BED entry. 
+		if (bedA->parseLine(a, bedFields, lineNum)) {
+			FindOverlaps(a, hits);
 			hits.clear();
-			a = nullBed;
-		}	
+		}
+		
+		// reset for the next input line
+		bedFields.clear();
 	}
-	_bedA->Close();
-	
 }
 // END Intersect
 
+
+void BedSubtract::DetermineBedInput() {
+	if (bedA->bedFile != "stdin") {   // process a file
+		ifstream beds(bedA->bedFile.c_str(), ios::in);
+		if ( !beds ) {
+			cerr << "Error: The requested bed file (" << bedA->bedFile << ") could not be opened. Exiting!" << endl;
+			exit (1);
+		}
+		SubtractBed(beds);
+	}
+	else {   						// process stdin
+		SubtractBed(cin);		
+	}
+}
 

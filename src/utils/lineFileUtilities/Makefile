@@ -1,3 +1,6 @@
+CXX = g++ -c
+CXXFLAGS = -O3  -Wall
+LDFLAGS = 
 OBJ_DIR = ../../../obj/
 BIN_DIR = ../../../bin/
 UTILITIES_DIR = ../../utils/

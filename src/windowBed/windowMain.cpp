@@ -14,6 +14,7 @@
 
 using namespace std;
 
+
 // define the version
 #define PROGRAM_NAME "windowBed"
 
@@ -22,7 +23,6 @@ using namespace std;
 
 // function declarations
 void ShowHelp(void);
-
 
 int main(int argc, char* argv[]) {
 
@@ -47,8 +47,6 @@ int main(int argc, char* argv[]) {
 	bool haveRight = false;
 	bool strandWindows = false;
 	bool matchOnStrand = false;
-	bool inputIsBam         = false;
-	bool outputIsBam        = true;	
 
 	// check to see if we should print out some help
 	if(argc <= 1) showHelp = true;
@@ -76,23 +74,12 @@ int main(int argc, char* argv[]) {
 				i++;
 			}
 		}
-		else if(PARAMETER_CHECK("-abam", 5, parameterLength)) {
-			if ((i+1) < argc) {
-				haveBedA = true;
-				inputIsBam = true;
-				bedAFile = argv[i + 1];
-				i++;		
-			}	
-		}
 		else if(PARAMETER_CHECK("-b", 2, parameterLength)) {
 			if ((i+1) < argc) {
 				haveBedB = true;
 				bedBFile = argv[i + 1];
 				i++;
 			}
-		}
-		else if(PARAMETER_CHECK("-bed", 4, parameterLength)) {
-			outputIsBam = false;
 		}	
 		else if(PARAMETER_CHECK("-u", 2, parameterLength)) {
 			anyHit = true;
@@ -174,16 +161,14 @@ int main(int argc, char* argv[]) {
 	}
 	
 	if (!showHelp) {
-		BedWindow *bi = new BedWindow(bedAFile, bedBFile, leftSlop, rightSlop, anyHit, 
-		                              noHit, writeCount, strandWindows, matchOnStrand, inputIsBam, outputIsBam);
-		delete bi;
+		BedWindow *bi = new BedWindow(bedAFile, bedBFile, leftSlop, rightSlop, anyHit, noHit, writeCount, strandWindows, matchOnStrand);
+		bi->DetermineBedInput();
 		return 0;
 	}
 	else {
 		ShowHelp();
 	}
 }
-
 
 void ShowHelp(void) {
 
@@ -195,15 +180,9 @@ void ShowHelp(void) {
 	cerr << "\t reports all features in B that overlap the window. For each" << endl;
 	cerr << "\t overlap the entire entry in A and B are reported." << endl << endl;
 
-	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -a <bed/gff/vcf> -b <bed/gff/vcf>" << endl << endl;
+	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -a <a.bed> -b <b.bed>" << endl << endl;
 
 	cerr << "Options: " << endl;
-	
-	cerr << "\t-abam\t"			<< "The A input file is in BAM format.  Output will be BAM as well." << endl << endl;
-
-	cerr << "\t-bed\t"			<< "When using BAM input (-abam), write output as BED. The default" << endl;
-	cerr 						<< "\t\tis to write output in BAM when using -abam." << endl << endl;
-	
 	cerr << "\t-w\t"			<< "Base pairs added upstream and downstream of each entry" << endl;
 	cerr						<< "\t\tin A when searching for overlaps in B." << endl;
 	cerr						<< "\t\t- Creates symterical \"windows\" around A." << endl;		
@@ -241,4 +220,5 @@ void ShowHelp(void) {
 
 	// end the program here
 	exit(1);
+
 }

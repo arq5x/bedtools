@@ -32,18 +32,14 @@ int main(int argc, char* argv[]) {
 	// input files
 	string bedFile;
 	string genomeFile;
-	int max = INT_MAX;
+	int max = 999999999;
 	
-	bool haveBed           = false;
-	bool bamInput          = false;
-	bool haveGenome        = false;
-	bool startSites        = false;
-	bool bedGraph          = false;
-	bool bedGraphAll       = false;	
-	bool eachBase          = false;
-	bool obeySplits	       = false;
-	bool filterByStrand    = false;
-	string requestedStrand = "X";
+	bool haveBed    = false;
+	bool bamInput   = false;
+	bool haveGenome = false;
+	bool startSites = false;
+	bool bedGraph   = false;
+	bool eachBase   = false;
 
 	// check to see if we should print out some help
 	if(argc <= 1) showHelp = true;
@@ -91,32 +87,11 @@ int main(int argc, char* argv[]) {
 		}
 		else if(PARAMETER_CHECK("-bg", 3, parameterLength)) {
 			bedGraph = true;
-		}
-		else if(PARAMETER_CHECK("-bga", 4, parameterLength)) {
-			bedGraphAll = true;
-		}				
+		}		
 		else if(PARAMETER_CHECK("-max", 4, parameterLength)) {
 			if ((i+1) < argc) {
 				max = atoi(argv[i + 1]);
 				i++;
-			}
-		}
-		else if(PARAMETER_CHECK("-split", 6, parameterLength)) {
-			obeySplits = true;
-		}
-		else if(PARAMETER_CHECK("-strand", 7, parameterLength)) {
-			if ((i+1) < argc) {
-				filterByStrand = true;
-				requestedStrand = argv[i+1][0];
-				if (!(requestedStrand == "-" || requestedStrand == "+")) {
-					cerr << "*****ERROR: invalid -strand value (" << requestedStrand << "). Allowed options are + or -" << endl;
-					showHelp = true;
-				}
-				i++;
-			} 
-			else {
-				cerr << "*****ERROR: -strand options requires a value: + or -" << endl;
-				showHelp = true;
 			}
 		}
 		else {
@@ -131,21 +106,16 @@ int main(int argc, char* argv[]) {
 	  showHelp = true;
 	}
 	if (bedGraph && eachBase) {
-	  cerr << endl << "*****" << endl << "*****ERROR: Use -d or -bg, not both" << endl << "*****" << endl;
+	  cerr << endl << "*****" << endl << "*****ERROR: Use -d or -bedgraph, not both" << endl << "*****" << endl;
 	  showHelp = true;
 	}
-	if (bedGraphAll && eachBase) {
-	  cerr << endl << "*****" << endl << "*****ERROR: Use -d or -bga, not both" << endl << "*****" << endl;
-	  showHelp = true;
-	}
-		
+	
 	if (!showHelp) {
 		
 		BedGenomeCoverage *bc = new BedGenomeCoverage(bedFile, genomeFile, eachBase, 
-                                                      startSites, bedGraph, bedGraphAll, 
-                                                      max, bamInput, obeySplits,
-  						                              filterByStrand, requestedStrand);
-		delete bc;
+                                                      startSites, bedGraph, max, bamInput);
+		
+		bc->DetermineBedInput();
 		
 		return 0;
 	}
@@ -158,12 +128,11 @@ void ShowHelp(void) {
 	
 	cerr << endl << "Program: " << PROGRAM_NAME << " (v" << VERSION << ")" << endl;
 	
-	cerr << "Authors: Aaron Quinlan (aaronquinlan@gmail.com)" << endl;
-	cerr << "         Gordon Assaf, CSHL" << endl << endl;
+	cerr << "Author:  Aaron Quinlan (aaronquinlan@gmail.com)" << endl;
 
-	cerr << "Summary: Compute the coverage of a feature file among a genome." << endl << endl;
+	cerr << "Summary: Compute the coverage of a BED file among a genome." << endl << endl;
 
-	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -i <bed/gff/vcf> -g <genome>" << endl << endl;
+	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -i <bed> -g <genome>" << endl << endl;
 	
 	cerr << "Options: " << endl;
 	
@@ -176,24 +145,6 @@ void ShowHelp(void) {
 	cerr << "\t-bg\t"			<< "Report depth in BedGraph format. For details, see:" << endl;
 	cerr 						<< "\t\tgenome.ucsc.edu/goldenPath/help/bedgraph.html" << endl << endl;
 
-	cerr << "\t-bga\t"			<< "Report depth in BedGraph format, as above (-bg)." << endl;
-	cerr 						<< "\t\tHowever with this option, regions with zero " << endl;
-	cerr                        << "\t\tcoverage are also reported.  This allows one to" << endl;
-	cerr                        << "\t\tquickly extract all regions of a genome with 0 " << endl;
-	cerr                        << "\t\tcoverage by applying: \"grep -w 0$\" to the output." << endl << endl;
-
-	cerr << "\t-split\t"	    << "Treat \"split\" BAM or BED12 entries as distinct BED intervals." << endl;
-	cerr						<< "\t\twhen computing coverage." << endl;
-    cerr			            << "\t\tFor BAM files, this uses the CIGAR \"N\" and \"D\" operations " << endl;
-	cerr						<< "\t\tto infer the blocks for computing coverage." << endl;
-    cerr			            << "\t\tFor BED12 files, this uses the BlockCount, BlockStarts, and BlockEnds" << endl;
-    cerr			            << "\t\tfields (i.e., columns 10,11,12)." << endl << endl;
-    
-	cerr << "\t-strand\t"       << "Calculate coverage of intervals from a specific strand." << endl;
-	cerr			            << "\t\tWith BED files, requires at least 6 columns (strand is column 6). " << endl;
-    cerr			            << "\t\t- (STRING): can be + or -" << endl << endl;
-
-			
 	cerr << "\t-max\t"          << "Combine all positions with a depth >= max into" << endl;
 	cerr						<< "\t\ta single bin in the histogram. Irrelevant" << endl;
 	cerr						<< "\t\tfor -d and -bedGraph" << endl;

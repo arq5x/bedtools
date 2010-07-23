@@ -15,46 +15,33 @@
 
 BedShuffle::BedShuffle(string &bedFile, string &genomeFile, string &excludeFile, bool &haveSeed, bool &haveExclude, bool &sameChrom, int &seed) {
 
-	_bedFile     = bedFile;
-	_genomeFile  = genomeFile;
-	_excludeFile = excludeFile;
-	_sameChrom   = sameChrom;
-	_haveExclude = haveExclude;
-	_haveSeed    = haveSeed;
+	this->bedFile     = bedFile;
+	this->genomeFile  = genomeFile;
+	this->excludeFile = excludeFile;
+	this->sameChrom   = sameChrom;
+	this->haveExclude = haveExclude;
+	this->haveSeed    = haveSeed;
 
 	
 	// use the supplied seed for the random
 	// number generation if given.  else,
 	// roll our own.
-	if (_haveSeed) {
-		_seed = seed;
+	if (this->haveSeed) {
+		this->seed = seed;
 		srand(seed);
 	}
 	else {
 		srand((unsigned)time(0)); 
 	}
 	
-	_bed         = new BedFile(bedFile);
-	_genome      = new GenomeFile(genomeFile);
-	_chroms      = _genome->getChromList();
-	_numChroms   = _genome->getNumberOfChroms();
+	this->bed         = new BedFile(bedFile);
+	this->genome      = new GenomeFile(genomeFile);
+	this->chroms      = genome->getChromList();
+	this->numChroms   = genome->getNumberOfChroms();
 	
-	if (_haveExclude) {
-		_exclude = new BedFile(excludeFile);
-		_exclude->loadBedFileIntoMap();	
-	}
-	
-	if (_bed->bedFile != "stdin") {   // process a file
-		if (_haveExclude)
-			ShuffleWithExclusions(); 
-		else
-			Shuffle(); 
-	}
-	else {				// process stdin
-		if (_haveExclude)
-			ShuffleWithExclusions(); 
-		else
-			Shuffle(); 
+	if (this->haveExclude) {
+		this->exclude = new BedFile(excludeFile);
+		this->exclude->loadBedFileIntoMap();	
 	}	
 }
 
@@ -64,98 +51,108 @@ BedShuffle::~BedShuffle(void) {
 }
 
 
-void BedShuffle::Shuffle() {
+void BedShuffle::Shuffle(istream &bedInput) {
 
 	int lineNum = 0;
-	BED bedEntry, nullBed;     // used to store the current BED line from the BED file.
-	BedLineStatus bedStatus;
-	
-	_bed->Open();
-	while ((bedStatus = _bed->GetNextBed(bedEntry, lineNum)) != BED_INVALID) {
-		if (bedStatus == BED_VALID) {
+	string bedLine;	  // used to store the current (unparsed) line from the BED file.
+	vector<string> bedFields;
+	bedFields.reserve(12);
+
+	while (getline(bedInput, bedLine)) {
+		
+		Tokenize(bedLine,bedFields);
+		lineNum++;
+		BED bedEntry;     // used to store the current BED line from the BED file.
+				
+		if (bed->parseLine(bedEntry, bedFields, lineNum)) {
+			// choose a new locus for this feat
 			ChooseLocus(bedEntry);			
-			_bed->reportBedNewLine(bedEntry);
-			bedEntry = nullBed;
+			bed->reportBedNewLine(bedEntry);
 		}
+		bedFields.clear();	
 	}
-	_bed->Close();
 }
 
 
 
-void BedShuffle::ShuffleWithExclusions() {
+void BedShuffle::ShuffleWithExclusions(istream &bedInput) {
 
 	int lineNum = 0;
-	BED bedEntry, nullBed;     // used to store the current BED line from the BED file.
-	BedLineStatus bedStatus;
+	string bedLine;	  // used to store the current (unparsed) line from the BED file.
+	vector<string> bedFields;
+	bedFields.reserve(12);		
 	vector<BED> hits;
 	hits.reserve(100);
 		
-	_bed->Open();	
-	while ((bedStatus = _bed->GetNextBed(bedEntry, lineNum)) != BED_INVALID) {
-		if (bedStatus == BED_VALID) {				
-    		// choose a random locus
-    		ChooseLocus(bedEntry);	
+	while (getline(bedInput, bedLine)) {
 		
-    		// test to see if the chosen locus overlaps 
-    		// with an exclude region
-    		_exclude->FindOverlapsPerBin(bedEntry.chrom, bedEntry.start, bedEntry.end, bedEntry.strand, hits, false);
-				
-    		bool haveOverlap = false;
-    		vector<BED>::const_iterator hitsItr = hits.begin();
-    		vector<BED>::const_iterator hitsEnd = hits.end();
-    		for (; hitsItr != hitsEnd; ++hitsItr) {
+		Tokenize(bedLine,bedFields);
+		lineNum++;
+		BED bedEntry;     // used to store the current BED line from the BED file.
 
-    			int s = max(bedEntry.start, hitsItr->start);
-    			int e = min(bedEntry.end, hitsItr->end);
+		if (bed->parseLine(bedEntry, bedFields, lineNum)) {
+						
+			// choose a random locus
+			ChooseLocus(bedEntry);	
+			
+			// test to see if the chosen locus overlaps 
+			// with an exclude region
+			exclude->FindOverlapsPerBin(bedEntry.chrom, bedEntry.start, bedEntry.end, bedEntry.strand, hits, false);
+					
+			bool haveOverlap = false;
+			vector<BED>::const_iterator hitsItr = hits.begin();
+			vector<BED>::const_iterator hitsEnd = hits.end();
+			for (; hitsItr != hitsEnd; ++hitsItr) {
 
-    			if ( (e - s) > 0) {
-    				haveOverlap = true;
-    				break;   /* stop looking.  one overlap is enough*/
-    			}
-    		}
-		
-    		/* 
-    		   keep looking as long as the chosen
-    		   locus happens to overlap with regions
-    		   that the user wishes to exclude.
-    		*/
-    		int tries = 0;
-    		while ((haveOverlap == true) && (tries <= MAX_TRIES)) {
+				int s = max(bedEntry.start, hitsItr->start);
+				int e = min(bedEntry.end, hitsItr->end);
 
-    			// choose a new locus
-    			ChooseLocus(bedEntry);
+				if ( (e - s) > 0) {
+					haveOverlap = true;
+					break;   /* stop looking.  one overlap is enough*/
+				}
+			}
+			
+			/* 
+			   keep looking as long as the chosen
+			   locus happens to overlap with regions
+			   that the user wishes to exclude.
+			*/
+			int tries = 0;
+			while ((haveOverlap == true) && (tries <= MAX_TRIES)) {
 
-    			vector<BED> hits;
-    			_exclude->FindOverlapsPerBin(bedEntry.chrom, bedEntry.start, bedEntry.end, 
-    										bedEntry.strand, hits, false);
+				// choose a new locus
+				ChooseLocus(bedEntry);
 
-    			haveOverlap = false;
-    			vector<BED>::const_iterator hitsItr = hits.begin();
-    			vector<BED>::const_iterator hitsEnd = hits.end();
-    			for (; hitsItr != hitsEnd; ++hitsItr) {
+				vector<BED> hits;
+				exclude->FindOverlapsPerBin(bedEntry.chrom, bedEntry.start, bedEntry.end, 
+											bedEntry.strand, hits, false);
 
-    				int s = max(bedEntry.start, hitsItr->start);
-    				int e = min(bedEntry.end, hitsItr->end);
+				haveOverlap = false;
+				vector<BED>::const_iterator hitsItr = hits.begin();
+				vector<BED>::const_iterator hitsEnd = hits.end();
+				for (; hitsItr != hitsEnd; ++hitsItr) {
 
-    				if ( (e - s) > 0) {
-    					haveOverlap = true;
-    					break;  // stop looking.  one overlap is enough
-    				}
-    			}
-    			tries++;
-    		}
-		
-    		if (tries > MAX_TRIES) {
-    			cerr << "Error, line " << lineNum << ": tried " << MAX_TRIES << " potential loci for entry, but could not avoid excluded regions.  Ignoring entry and moving on." << endl;
-    		}
-    		else {
-    			_bed->reportBedNewLine(bedEntry);
-    		}
-    	}
-    	bedEntry = nullBed;
+					int s = max(bedEntry.start, hitsItr->start);
+					int e = min(bedEntry.end, hitsItr->end);
+
+					if ( (e - s) > 0) {
+						haveOverlap = true;
+						break;  /* stop looking.  one overlap is enough*/
+					}
+				}
+				tries++;
+			}
+			
+			if (tries > MAX_TRIES) {
+				cerr << "Error, line " << lineNum << ": tried " << MAX_TRIES << " potential loci for entry, but could not avoid excluded regions.  Ignoring entry and moving on." << endl;
+			}
+			else {
+				bed->reportBedNewLine(bedEntry);
+			}
+		}
+		bedFields.clear();
 	}
-	_bed->Close();
 }
 
 
@@ -163,24 +160,24 @@ void BedShuffle::ShuffleWithExclusions() {
 void BedShuffle::ChooseLocus(BED &bedEntry) {
 	
 	string chrom = bedEntry.chrom;
-	CHRPOS start    = bedEntry.start;
-	CHRPOS end      = bedEntry.end;
-	CHRPOS length   = end - start;
+	int start    = bedEntry.start;
+	int end      = bedEntry.end;
+	int length   = end - start;
 	
 	string randomChrom;
-	CHRPOS randomStart;
-	CHRPOS chromSize;
+	int randomStart;
+	int chromSize;
 	
-	if (_sameChrom == false) {
-		randomChrom    = _chroms[rand() % _numChroms];
-		chromSize      = _genome->getChromSize(randomChrom);
+	if (!this->sameChrom) {
+		randomChrom    = chroms[rand() % this->numChroms];
+		chromSize      = genome->getChromSize(randomChrom);
 		randomStart    = rand() % chromSize;
 		bedEntry.chrom = randomChrom;
 		bedEntry.start = randomStart;
 		bedEntry.end   = randomStart + length;
 	}
 	else {
-		chromSize      = _genome->getChromSize(chrom);
+		chromSize      = genome->getChromSize(chrom);
 		randomStart    = rand() % chromSize;
 		bedEntry.start = randomStart;
 		bedEntry.end   = randomStart + length;
@@ -190,20 +187,46 @@ void BedShuffle::ChooseLocus(BED &bedEntry) {
 	// the length of the chromosome. if so, keep looking
 	// for a new spot.
 	while (bedEntry.end > chromSize) {
-		if (_sameChrom == false) {
-			randomChrom    = _chroms[rand() % _numChroms];
-			chromSize      = _genome->getChromSize(randomChrom);
+		if (!this->sameChrom) {
+			randomChrom    = chroms[rand() % this->numChroms];
+			chromSize      = genome->getChromSize(randomChrom);
 			randomStart    = rand() % chromSize;
 			bedEntry.chrom = randomChrom;
 			bedEntry.start = randomStart;
 			bedEntry.end   = randomStart + length;
 		}
 		else {
-			chromSize      = _genome->getChromSize(chrom);
+			chromSize      = genome->getChromSize(chrom);
 			randomStart    = rand() % chromSize;
 			bedEntry.start = randomStart;
 			bedEntry.end   = randomStart + length;
 		}
+	}
+}
+
+
+void BedShuffle::DetermineBedInput() {
+	if (bed->bedFile != "stdin") {   // process a file
+		ifstream beds(bed->bedFile.c_str(), ios::in);
+		if ( !beds ) {
+			cerr << "Error: The requested bed file (" << bed->bedFile << ") could not be opened. Exiting!" << endl;
+			exit (1);
+		}
+		if (this->haveExclude) { 
+			ShuffleWithExclusions(beds); 
+		}
+		else {
+			Shuffle(beds); 
+		}
+	}
+	else {
+									// process stdin
+		if (this->haveExclude) { 
+			ShuffleWithExclusions(cin); 
+		}
+		else {
+			Shuffle(cin); 
+		}		
 	}
 }
 

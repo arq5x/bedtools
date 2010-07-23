@@ -44,11 +44,9 @@ int main(int argc, char* argv[]) {
 	bool writeB             = false;
 	bool writeCount         = false;
 	bool writeOverlap       = false;
-	bool writeAllOverlap    = false;
 	bool haveFraction       = false;
 	bool reciprocalFraction = false;
 	bool forceStrand        = false;
-    bool obeySplits         = false;
 	bool inputIsBam         = false;
 	bool outputIsBam        = true;
 	
@@ -116,10 +114,6 @@ int main(int argc, char* argv[]) {
 		else if(PARAMETER_CHECK("-wo", 3, parameterLength)) {
 			writeOverlap = true;
 		}
-		else if(PARAMETER_CHECK("-wao", 4, parameterLength)) {
-			writeAllOverlap = true;
-			writeOverlap = true;
-		}
 		else if(PARAMETER_CHECK("-c", 2, parameterLength)) {
 			writeCount = true;
 		}
@@ -132,9 +126,6 @@ int main(int argc, char* argv[]) {
 		else if (PARAMETER_CHECK("-s", 2, parameterLength)) {
 			forceStrand = true;
 		}
-		else if (PARAMETER_CHECK("-split", 6, parameterLength)) {
-			obeySplits = true;
-		}		
 		else {
 			cerr << endl << "*****ERROR: Unrecognized parameter: " << argv[i] << " *****" << endl << endl;
 			showHelp = true;
@@ -196,9 +187,9 @@ int main(int argc, char* argv[]) {
 	if (!showHelp) {
 
 		BedIntersect *bi = new BedIntersect(bedAFile, bedBFile, anyHit, writeA, writeB, writeOverlap,
-											writeAllOverlap, overlapFraction, noHit, writeCount, forceStrand, 
-											reciprocalFraction, obeySplits, inputIsBam, outputIsBam);
-		delete bi;
+											overlapFraction, noHit, writeCount, forceStrand, 
+											reciprocalFraction, inputIsBam, outputIsBam);
+		bi->DetermineBedInput();
 		return 0;
 	}
 	else {
@@ -212,9 +203,9 @@ void ShowHelp(void) {
 	
 	cerr << "Author:  Aaron Quinlan (aaronquinlan@gmail.com)" << endl;
 
-	cerr << "Summary: Report overlaps between two feature files." << endl << endl;
+	cerr << "Summary: Report overlaps between a.bed and b.bed." << endl << endl;
 
-	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -a <bed/gff/vcf> -b <bed/gff/vcf>" << endl << endl;
+	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -a <a.bed> -b <b.bed>" << endl << endl;
 
 	cerr << "Options: " << endl;
 	
@@ -230,15 +221,8 @@ void ShowHelp(void) {
 
 	cerr << "\t-wo\t"			<< "Write the original A and B entries plus the number of base" << endl;
 	cerr 						<< "\t\tpairs of overlap between the two features." << endl;
-	cerr						<< "\t\t- Overlaps restricted by -f and -r." << endl;
-	cerr						<< "\t\t  Only A features with overlap are reported." << endl << endl;
-
-	cerr << "\t-wao\t"			<< "Write the original A and B entries plus the number of base" << endl;
-	cerr 						<< "\t\tpairs of overlap between the two features." << endl;
-	cerr						<< "\t\t- Overlapping features restricted by -f and -r." << endl;
-	cerr						<< "\t\t  However, A features w/o overlap are also reported" << endl;
-	cerr						<< "\t\t  with a NULL B feature and overlap = 0." << endl << endl;
-					
+	cerr						<< "\t\t- Overlaps restricted by -f and -r." << endl << endl;
+		
 	cerr << "\t-u\t"      		<< "Write the original A entry _once_ if _any_ overlaps found in B." << endl;
 	cerr 						<< "\t\t- In other words, just report the fact >=1 hit was found." << endl;
 	cerr						<< "\t\t- Overlaps restricted by -f and -r." << endl << endl;
@@ -261,9 +245,6 @@ void ShowHelp(void) {
 	cerr << "\t-s\t"	 	    << "Force strandedness.  That is, only report hits in B that" << endl;
 	cerr						<< "\t\toverlap A on the same strand." << endl;
 	cerr						<< "\t\t- By default, overlaps are reported without respect to strand." << endl << endl;
-	
-	cerr << "\t-split\t"	    << "Treat \"split\" BAM or BED12 entries as distinct BED intervals." << endl << endl;
-	
 
 	// end the program here
 	exit(1);

@@ -16,40 +16,23 @@
 /*
 	Constructor
 */
-BedWindow::BedWindow(string bedAFile, string bedBFile, int leftSlop, int rightSlop, bool anyHit, bool noHit, 
-					bool writeCount, bool strandWindows, bool matchOnStrand, bool bamInput, bool bamOutput) {
+BedWindow::BedWindow(string &bedAFile, string &bedBFile, int &leftSlop, int &rightSlop, bool &anyHit, bool &noHit, 
+					bool &writeCount, bool &strandWindows, bool &matchOnStrand) {
 
-	_bedAFile      = bedAFile;
-	_bedBFile      = bedBFile;
+	this->bedAFile = bedAFile;
+	this->bedBFile = bedBFile;
 
-	_leftSlop      = leftSlop;
-	_rightSlop     = rightSlop;
+	this->leftSlop = leftSlop;
+	this->rightSlop = rightSlop;
 
-	_anyHit        = anyHit;
-	_noHit         = noHit;
-	_writeCount    = writeCount;
-	_strandWindows = strandWindows;	
-	_matchOnStrand = matchOnStrand;
-	_bamInput      = bamInput;
-	_bamOutput     = bamOutput;
+	this->anyHit = anyHit;
+	this->noHit = noHit;
+	this->writeCount = writeCount;
+	this->strandWindows = strandWindows;	
+	this->matchOnStrand = matchOnStrand;
 		
-	_bedA          = new BedFile(bedAFile);
-	_bedB          = new BedFile(bedBFile);
-	
-	// dealing with a proper file
-	if (_bedA->bedFile != "stdin") {   
-		if (_bamInput == false) 
-			WindowIntersectBed();
-		else
-			WindowIntersectBam(_bedA->bedFile);
-	}
-	// reading from stdin
-	else {  
-		if (_bamInput == false)
-			WindowIntersectBed();
-		else
-			WindowIntersectBam("stdin");			
-	}
+	this->bedA = new BedFile(bedAFile);
+	this->bedB = new BedFile(bedBFile);
 }
 
 
@@ -62,7 +45,7 @@ BedWindow::~BedWindow(void) {
 
 
 
-void BedWindow::FindWindowOverlaps(const BED &a, vector<BED> &hits) {
+void BedWindow::FindWindowOverlaps(BED &a, vector<BED> &hits) {
 	
 	/* 
 		Adjust the start and end of a based on the requested window
@@ -70,15 +53,38 @@ void BedWindow::FindWindowOverlaps(const BED &a, vector<BED> &hits) {
 
 	// update the current feature's start and end
 	// according to the slop requested (slop = 0 by default)
-	CHRPOS aFudgeStart = 0;
-	CHRPOS aFudgeEnd;
-	AddWindow(a, aFudgeStart, aFudgeEnd);
+	int aFudgeStart = 0;
+	int aFudgeEnd;
 
+	// Does the user want to treat the windows based on strand?
+	// If so, 
+	// if "+", then left is left and right is right
+	// if "-", the left is right and right is left.
+	if (this->strandWindows) {
+		if (a.strand == "+") {
+			if ((a.start - this->leftSlop) > 0) aFudgeStart = a.start - this->leftSlop;
+			else aFudgeStart = 0;
+			aFudgeEnd = a.end + this->rightSlop;
+		}
+		else {
+			if ((a.start - this->rightSlop) > 0) aFudgeStart = a.start - this->rightSlop;
+			else aFudgeStart = 0;
+			aFudgeEnd = a.end + this->leftSlop;
+		}
+	}
+	// If not, add the windows irrespective of strand
+	else {
+		if ((a.start - this->leftSlop) > 0) aFudgeStart = a.start - this->leftSlop;
+		else aFudgeStart = 0;
+		aFudgeEnd = a.end + this->rightSlop;
+	}
+	
+	
 	/* 
 		Now report the hits (if any) based on the window around a.
 	*/
 	// get the hits in B for the A feature
-	_bedB->FindOverlapsPerBin(a.chrom, aFudgeStart, aFudgeEnd, a.strand, hits, _matchOnStrand);
+	bedB->FindOverlapsPerBin(a.chrom, aFudgeStart, aFudgeEnd, a.strand, hits, this->matchOnStrand);
 
 	int numOverlaps = 0;
 	
@@ -96,154 +102,70 @@ void BedWindow::FindWindowOverlaps(const BED &a, vector<BED> &hits) {
 			// is there enough overlap (default ~ 1bp)
 			if ( ((float) overlapBases / (float) aLength) > 0 ) { 
 				numOverlaps++;	
-				if (_anyHit == false && _noHit == false && _writeCount == false) {			
-					_bedA->reportBedTab(a);
-					_bedB->reportBedNewLine(*h);
+				if (!anyHit && !noHit && !writeCount) {			
+					bedA->reportBedTab(a);
+					bedB->reportBedNewLine(*h);
 				}
 			}
 		}
 	}
-	if (_anyHit == true && (numOverlaps >= 1)) {
-		_bedA->reportBedNewLine(a);	}
-	else if (_writeCount == true) {
-		_bedA->reportBedTab(a); printf("\t%d\n", numOverlaps);
+	if (anyHit && (numOverlaps >= 1)) {
+		bedA->reportBedNewLine(a);	}
+	else if (writeCount) {
+		bedA->reportBedTab(a); printf("\t%d\n", numOverlaps);
 	}
-	else if (_noHit == true && (numOverlaps == 0)) {
-		_bedA->reportBedNewLine(a);
+	else if (noHit && (numOverlaps == 0)) {
+		bedA->reportBedNewLine(a);
 	}
-}
-
-
-bool BedWindow::FindOneOrMoreWindowOverlaps(const BED &a) {
-	
-	// update the current feature's start and end
-	// according to the slop requested (slop = 0 by default)
-	CHRPOS aFudgeStart = 0;
-	CHRPOS aFudgeEnd;
-	AddWindow(a, aFudgeStart, aFudgeEnd);
-	
-	bool overlapsFound = _bedB->FindOneOrMoreOverlapsPerBin(a.chrom, a.start, a.end, a.strand, _matchOnStrand);
-	return overlapsFound;
 }
 
  
-void BedWindow::WindowIntersectBed() {
+void BedWindow::WindowIntersectBed(istream &bedInput) {
 
 	// load the "B" bed file into a map so
 	// that we can easily compare "A" to it for overlaps
-	_bedB->loadBedFileIntoMap();
+	bedB->loadBedFileIntoMap();
 
-	BED a, nullBed;                                                                                                                    
+	string bedLine;                                                                                                                    
 	int lineNum = 0;					// current input line number
-	BedLineStatus bedStatus;
 	vector<BED> hits;					// vector of potential hits
-	hits.reserve(100);
-
-	_bedA->Open();
-	while ((bedStatus = _bedA->GetNextBed(a, lineNum)) != BED_INVALID) {
-		if (bedStatus == BED_VALID) {
-			FindWindowOverlaps(a, hits);
-			hits.clear();
-			a = nullBed;
-		}
-	}
-	_bedA->Close();
-}
-
-
-void BedWindow::WindowIntersectBam(string bamFile) {
-
-	// load the "B" bed file into a map so
-	// that we can easily compare "A" to it for overlaps
-	_bedB->loadBedFileIntoMap();
+	vector<string> bedFields;			// vector for a BED entry
 	
-	// open the BAM file
-	BamReader reader;
-	BamWriter writer;
-	reader.Open(bamFile);
-
-	// get header & reference information
-	string header  = reader.GetHeaderText();
-	RefVector refs = reader.GetReferenceData();
-
-	// open a BAM output to stdout if we are writing BAM
-	if (_bamOutput == true) {
-		// open our BAM writer
-		writer.Open("stdout", header, refs);
-	}
-
-	vector<BED> hits;					// vector of potential hits
 	// reserve some space
 	hits.reserve(100);
-	
-	_bedA->bedType = 6;
-	BamAlignment bam;	
-	bool overlapsFound;
-	// get each set of alignments for each pair.
-	while (reader.GetNextAlignment(bam)) {
+	bedFields.reserve(12);	
+
+	// process each entry in A
+	while (getline(bedInput, bedLine)) {
+
+		lineNum++;
+		Tokenize(bedLine,bedFields);
+		BED a;
 		
-		if (bam.IsMapped()) {	
-			BED a;
-			a.chrom = refs.at(bam.RefID).RefName;
-			a.start = bam.Position;
-			a.end   = bam.GetEndPosition(false);
-
-			// build the name field from the BAM alignment.
-			a.name = bam.Name;
-			if (bam.IsFirstMate()) a.name += "/1";
-			if (bam.IsSecondMate()) a.name += "/2";
-
-			a.score  = ToString(bam.MapQuality);
-			a.strand = "+"; if (bam.IsReverseStrand()) a.strand = "-"; 
-	
-			if (_bamOutput == true) {
-				overlapsFound = FindOneOrMoreWindowOverlaps(a);
-				if (overlapsFound == true) {
-					if (_noHit == false)
-						writer.SaveAlignment(bam);
-				}
-				else {
-					if (_noHit == true) 
-						writer.SaveAlignment(bam);	
-				}
-			}
-			else {
-				FindWindowOverlaps(a, hits);
-				hits.clear();
-			}
+		// find the overlaps between "a" and "B" if "a" is a valid BED entry. 
+		if (bedA->parseLine(a, bedFields, lineNum)) {
+			FindWindowOverlaps(a, hits);
+			hits.clear();
 		}
-	}
-	
-	// close the relevant BAM files.
-	reader.Close();
-	if (_bamOutput == true) {
-		writer.Close();
+		
+		// reset for the next input line
+		bedFields.clear();
 	}
 }
+// END WindowIntersectBed
 
 
-void BedWindow::AddWindow(const BED &a, CHRPOS &fudgeStart, CHRPOS &fudgeEnd) {
-	// Does the user want to treat the windows based on strand?
-	// If so, 
-	// if "+", then left is left and right is right
-	// if "-", the left is right and right is left.
-	if (_strandWindows) {
-		if (a.strand == "+") {
-			if ((a.start - _leftSlop) > 0) fudgeStart = a.start - _leftSlop;
-			else fudgeStart = 0;
-			fudgeEnd = a.end + _rightSlop;
+void BedWindow::DetermineBedInput() {
+	if (bedA->bedFile != "stdin") {   // process a file
+		ifstream beds(bedA->bedFile.c_str(), ios::in);
+		if ( !beds ) {
+			cerr << "Error: The requested bed file (" << bedA->bedFile << ") could not be opened. Exiting!" << endl;
+			exit (1);
 		}
-		else {
-			if ((a.start - _rightSlop) > 0) fudgeStart = a.start - _rightSlop;
-			else fudgeStart = 0;
-			fudgeEnd = a.end + _leftSlop;
-		}
+		WindowIntersectBed(beds);
 	}
-	// If not, add the windows irrespective of strand
-	else {
-		if ((a.start - _leftSlop) > 0) fudgeStart = a.start - _leftSlop;
-		else fudgeStart = 0;
-		fudgeEnd = a.end + _rightSlop;
+	else {   						// process stdin
+		WindowIntersectBed(cin);		
 	}
 }
 

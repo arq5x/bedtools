@@ -16,14 +16,12 @@
 // Constructor
 //
 BedLinks::BedLinks(string &bedFile, string &base, string &org, string &db) {
-	_bedFile = bedFile;
-	_bed = new BedFile(bedFile);
+	this->bedFile = bedFile;
+	this->bed = new BedFile(bedFile);
 	
-	_base = base;
-	_org = org;
-	_db = db;
-	
-	CreateLinks();
+	this->base = base;
+	this->org = org;
+	this->db = db;
 }
 
 //
@@ -47,12 +45,12 @@ void BedLinks::WriteURL(BED &bed, string &base) {
 			cout << "</a>" << endl;
 		cout << "\t</td>" << endl;	
 
-		if (_bed->bedType == 4) {
+		if (this->bed->bedType == 4) {
 			cout << "\t<td>" << endl;
 			cout << bed.name << endl;
 			cout << "\t</td>" << endl;
 		}
-		else if (_bed->bedType == 5) {
+		else if (this->bed->bedType == 5) {
 			cout << "\t<td>" << endl;
 			cout << bed.name << endl;
 			cout << "\t</td>" << endl;
@@ -61,7 +59,7 @@ void BedLinks::WriteURL(BED &bed, string &base) {
 			cout << bed.score << endl;
 			cout << "\t</td>" << endl;
 		}
-		else if ((_bed->bedType == 6) || (_bed->bedType == 9) || (_bed->bedType == 12)) {
+		else if ((this->bed->bedType == 6) || (this->bed->bedType == 9) || (this->bed->bedType == 12)) {
 			cout << "\t<td>" << endl;
 			cout << bed.name << endl;
 			cout << "\t</td>" << endl;
@@ -78,13 +76,13 @@ void BedLinks::WriteURL(BED &bed, string &base) {
 }
 
 
-void BedLinks::CreateLinks() {
+void BedLinks::LinksBed(istream &bedInput) {
 
 
 	// construct the html base.
-	string org = _org;
-	string db = _db;
-	string base = _base;
+	string org = this->org;
+	string db = this->db;
+	string base = this->base;
 	base.append("/cgi-bin/hgTracks?org=");
 	base.append(org);
 	base.append("&db=");
@@ -93,30 +91,49 @@ void BedLinks::CreateLinks() {
 	
 	// create the HTML header
 	cout << "<html>" << endl <<"\t<body>" << endl; 
-	cout << "<title>" << _bedFile << "</title>" << endl;
+	cout << "<title>" << this->bedFile << "</title>" << endl;
 	
 	// start the table of entries
 	cout << "<br>Firefox users: Press and hold the \"apple\" or \"alt\" key and click link to open in new tab." << endl;
 	cout << "<p style=\"font-family:courier\">" << endl;
 	cout << "<table border=\"0\" align=\"justify\"" << endl;
-	cout << "<h3>BED Entries from: stdin </h3>" << endl;
 	
+	string bedLine;                                                                                                                      
 	int lineNum = 0;
-	BED bedEntry, nullBed;
-	BedLineStatus bedStatus;
+	vector<string> bedFields;
+	bedFields.reserve(12);
 	
-	_bed->Open();
-	while ((bedStatus = _bed->GetNextBed(bedEntry, lineNum)) != BED_INVALID) {
-		if (bedStatus == BED_VALID) {
-			WriteURL(bedEntry, base);
-			bedEntry = nullBed;
-		}
-	}
-	_bed->Close();
+	cout << "<h3>BED Entries from: stdin </h3>" << endl;
 
+	while (getline(bedInput, bedLine)) {
+
+		Tokenize(bedLine,bedFields);
+		lineNum++;
+		BED bedEntry;  	
+		
+		if (this->bed->parseLine(bedEntry, bedFields, lineNum)) {
+			bedEntry.count = 0;
+			WriteURL(bedEntry, base);
+		}
+		bedFields.clear();
+	}
 	cout << "</table>" << endl;
 	cout << "</p>" << endl;
 	cout << "\t</body>" << endl <<"</html>" << endl;
 }
 
 
+void BedLinks::DetermineBedInput() {
+
+	if (this->bedFile != "stdin") {   // process a file
+		ifstream beds(this->bedFile.c_str(), ios::in);
+		if ( !beds ) {
+			cerr << "Error: The requested bed file (" << this->bedFile << ") could not be opened. Exiting!" << endl;
+			exit (1);
+		}
+		LinksBed(beds);
+	}
+	else {   // process stdin
+		LinksBed(cin);		
+	}
+}

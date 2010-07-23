@@ -100,7 +100,13 @@ int main(int argc, char* argv[]) {
 
 	if (!showHelp) {
 		BedMerge *bm = new BedMerge(bedFile, numEntries, maxDistance, forceStrand, reportNames);
-		delete bm;
+		
+		if (!forceStrand) {
+			bm->MergeBed();
+		}
+		else {
+			bm->MergeBedStranded();			
+		}
 		return 0;
 	}
 	else {
@@ -114,9 +120,9 @@ void ShowHelp(void) {
 	
 	cerr << "Author:  Aaron Quinlan (aaronquinlan@gmail.com)" << endl;
 	
-	cerr << "Summary: Merges overlapping BED/GFF/VCF entries into a single interval." << endl << endl;
+	cerr << "Summary: Merges overlapping BED entries into a single interval." << endl << endl;
 
-	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -i <bed/gff/vcf>" << endl << endl;
+	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -i <input.bed>" << endl << endl;
 
 	cerr << "Options: " << endl;
 	cerr << "\t-s\t"      		<< "Force strandedness.  That is, only merge features" << endl;

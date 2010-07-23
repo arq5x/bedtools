@@ -37,14 +37,13 @@ int main(int argc, char* argv[]) {
 	string searchType = "either";
 
 	// flags to track parameters
-	bool haveBedA        = false;
-	bool haveBedB        = false;
-	bool haveSearchType  = false;
-	bool haveFraction    = false;
-	bool forceStrand     = false;
-	bool useEditDistance = false;
-	bool inputIsBam      = false;
-	bool outputIsBam     = true;
+	bool haveBedA = false;
+	bool haveBedB = false;
+	bool haveSearchType = false;
+	bool haveFraction = false;
+	bool forceStrand = false;
+	bool inputIsBam = false;
+	bool outputIsBam = true;
 	
 	// check to see if we should print out some help
 	if(argc <= 1) showHelp = true;
@@ -91,9 +90,6 @@ int main(int argc, char* argv[]) {
 		else if(PARAMETER_CHECK("-bedpe", 6, parameterLength)) {
 			outputIsBam = false;
 		}
-		else if(PARAMETER_CHECK("-ed", 3, parameterLength)) {
-			useEditDistance = true;
-		}
 		else if(PARAMETER_CHECK("-type", 5, parameterLength)) {
 			if ((i+1) < argc) {
 				haveSearchType = true;
@@ -136,18 +132,12 @@ int main(int argc, char* argv[]) {
 		cerr << endl << "*****" << endl << "*****ERROR: Cannot enforce strandedness with selected searchtype" << endl << "*****" << endl;
 		showHelp = true;		
 	}
-	
-	if (useEditDistance && (inputIsBam == false || outputIsBam == true)) {
-		cerr << endl << "*****" << endl << "*****ERROR: -ed must be used with -bedpe and -abam." << endl << "*****" << endl;
-		showHelp = true;		
-	}
 
 	if (!showHelp) {
 
 		BedIntersectPE *bi = new BedIntersectPE(bedAFile, bedBFile, overlapFraction, 
-												searchType, forceStrand, inputIsBam, 
-												outputIsBam, useEditDistance);
-		delete bi;
+												searchType, forceStrand, inputIsBam, outputIsBam);
+		bi->DetermineBedPEInput();
 		return 0;
 	}
 	else {
@@ -162,23 +152,16 @@ void ShowHelp(void) {
 	
 	cerr << "Author:  Aaron Quinlan (aaronquinlan@gmail.com)" << endl;
 
-	cerr << "Summary: Report overlaps between a BEDPE file and a BED/GFF/VCF file." << endl << endl;
+	cerr << "Summary: Report overlaps between a BEDPE file and a BED file." << endl << endl;
 
-	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -a <bedpe> -b <bed/gff/vcf>" << endl << endl;
+	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -a <BEDPE> -b <BED>" << endl << endl;
 
 	cerr << "Options: " << endl;
 
-	cerr << "\t-abam\t"			<< "The A input file is in BAM format.  Output will be BAM as well." << endl;
-	cerr 					    << "\t\t- Requires BAM to be grouped or sorted by query." << endl << endl;
-	
+	cerr << "\t-abam\t"			<< "The A input file is in BAM format.  Output will be BAM as well." << endl << endl;
+
 	cerr << "\t-bedpe\t"		<< "When using BAM input (-abam), write output as BEDPE. The default" << endl;
 	cerr 						<< "\t\tis to write output in BAM when using -abam." << endl << endl;
-	
-	cerr << "\t-ed\t"	   		<< "Use BAM total edit distance (NM tag) for BEDPE score." << endl;
-	cerr 				   		<< "\t\t- Default for BEDPE is to use the minimum of" << endl;
-	cerr 				   		<< "\t\t  of the two mapping qualities for the pair." << endl;
-	cerr 				   		<< "\t\t- When -ed is used the total edit distance" << endl;
-	cerr 				   		<< "\t\t  from the two mates is reported as the score." << endl << endl;
 	
 	cerr << "\t-f\t"	    			<< "Minimum overlap required as fraction of A (e.g. 0.05)." << endl;
 	cerr 								<< "\t\tDefault is 1E-9 (effectively 1bp)." << endl << endl;

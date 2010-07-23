@@ -1,3 +1,8 @@
+CXX = g++
+CXXFLAGS = -O3  -Wall
+LDFLAGS = 
+LIBS=	-lz
+
 UTILITIES_DIR = ../utils/
 OBJ_DIR = ../../obj/
 BIN_DIR = ../../bin/
@@ -5,14 +10,14 @@ BIN_DIR = ../../bin/
 # -------------------
 # define our includes
 # -------------------
-INCLUDES = -I$(UTILITIES_DIR)/bedFilePE/ -I$(UTILITIES_DIR)/bedFile/ -I$(UTILITIES_DIR)/lineFileUtilities/ -I$(UTILITIES_DIR)/version/ -I$(UTILITIES_DIR)/BamTools/ -I$(UTILITIES_DIR)/gzstream/ -I$(UTILITIES_DIR)/fileType/
+INCLUDES = -I$(UTILITIES_DIR)/bedFilePE/ -I$(UTILITIES_DIR)/bedFile/ -I$(UTILITIES_DIR)/lineFileUtilities/ -I$(UTILITIES_DIR)/version/ -I$(UTILITIES_DIR)/BamTools/
 
 # ----------------------------------
 # define our source and object files
 # ----------------------------------
 SOURCES= pairToBedMain.cpp pairToBed.cpp
 OBJECTS= $(SOURCES:.cpp=.o)
-_EXT_OBJECTS=bedFilePE.o bedFile.o lineFileUtilities.o BamReader.o BamWriter.o BGZF.o gzstream.o fileType.o
+_EXT_OBJECTS=bedFilePE.o bedFile.o lineFileUtilities.o BamReader.o BamWriter.o BGZF.o
 EXT_OBJECTS=$(patsubst %,$(OBJ_DIR)/%,$(_EXT_OBJECTS))
 BUILT_OBJECTS= $(patsubst %,$(OBJ_DIR)/%,$(OBJECTS))
 PROGRAM= pairToBed
@@ -34,9 +39,7 @@ $(EXT_OBJECTS):
 	@$(MAKE) --no-print-directory -C $(UTILITIES_DIR)/bedFilePE/
 	@$(MAKE) --no-print-directory -C $(UTILITIES_DIR)/lineFileUtilities/
 	@$(MAKE) --no-print-directory -C $(UTILITIES_DIR)/BamTools/	
-	@$(MAKE) --no-print-directory -C $(UTILITIES_DIR)/gzstream/
-	@$(MAKE) --no-print-directory -C $(UTILITIES_DIR)/fileType/	
-			
+		
 clean:
 	@echo "Cleaning up."
 	@rm -f $(OBJ_DIR)/* $(BIN_DIR)/*

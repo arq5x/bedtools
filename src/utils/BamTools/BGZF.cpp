@@ -250,7 +250,6 @@ void BgzfData::Open(const string& filename, const char* mode) {
     IsOpen = true;
 }
 
-
 int BgzfData::Read(char* data, const unsigned int dataLength) {
 
    if (dataLength == 0) { return 0; }

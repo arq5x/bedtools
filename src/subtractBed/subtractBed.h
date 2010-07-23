@@ -27,26 +27,29 @@ class BedSubtract {
 public:
 
 	// constructor 
-	BedSubtract(string &bedAFile, string &bedBFile, float &overlapFraction, bool &forceStrand);
+	BedSubtract(string &, string &, float &, bool &);
 
 	// destructor
 	~BedSubtract(void);
+	
+	void reportARemainder(BED &, int &, int &);	
+	void reportA(BED &);
 
+	void FindOverlaps(BED &, vector<BED> &); 
+	void SubtractBed(istream &bedInput);
+	void DetermineBedInput();
+	
 private:
 
-	// processing variables
-	string _bedAFile;
-	string _bedBFile;
-	float _overlapFraction;
-	bool _noHit;
-	bool _forceStrand;
+	string bedAFile;
+	string bedBFile;
+	float overlapFraction;
+	bool noHit;
+	bool forceStrand;
 	
-	// instances of bed file class.
-	BedFile *_bedA, *_bedB;
-	
-	// methods
-	void FindAndSubtractOverlaps(BED &a, vector<BED> &hits); 
-	void SubtractBed();
+	// instance of a bed file class.
+	BedFile *bedA, *bedB;
+
 };
 
 #endif /* SUBTRACTBED_H */

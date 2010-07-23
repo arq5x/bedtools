@@ -16,7 +16,6 @@
 
 #include "BamReader.h"
 #include "BamAux.h"
-#include "BamAncillary.h"
 using namespace BamTools;
 
 #include <vector>
@@ -36,38 +35,36 @@ class BedCoverage {
 public:
 
 	// constructor 
-	BedCoverage(string &bedAFile, string &bedBFile, bool &forceStrand, bool &writeHistogram, 
-	            bool &bamInput, bool &obeySplits);
+	BedCoverage(string &bedAFile, string &bedBFile, bool &forceStrand, bool &writeHistogram, bool &bamInput);
 
 	// destructor
 	~BedCoverage(void);
 	
+	void CollectCoverageBed(istream &bedInput);
+
+	void CollectCoverageBam(string bamFile);
+	
+	void DetermineBedInput();
+	
 private:
 
 	// input files.
-	string _bedAFile;
-	string _bedBFile;
+	string bedAFile;
+	string bedBFile;
 
 	// instance of a bed file class.
-	BedFile *_bedA, *_bedB;
+	BedFile *bedA, *bedB;
 	
 	// do we care about strandedness when counting coverage?
-	bool _forceStrand;
+	bool forceStrand;
 	
 	// should we write a histogram for each feature in B?
-	bool _writeHistogram;
+	bool writeHistogram;
 	
 	// are we dealing with BAM input for "A"?
-	bool _bamInput;
-	
-	// should we split BED/BAM into discrete blocks?
-    bool _obeySplits;
+	bool bamInput;
 	
 	// private function for reporting coverage information
 	void ReportCoverage();
-	
-	void CollectCoverageBed();
-
-	void CollectCoverageBam(string bamFile);
 };
 #endif /* COVERAGEBED_H */

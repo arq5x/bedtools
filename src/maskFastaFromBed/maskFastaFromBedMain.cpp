@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
 	if (!showHelp) {
 
 		MaskFastaFromBed *maskFasta = new MaskFastaFromBed(fastaInFile, bedFile, fastaOutFile, softMask);
-		delete maskFasta; 
+		maskFasta->MaskFasta(); 
 		return 0;
 	}
 	else {
@@ -114,13 +114,13 @@ void ShowHelp(void) {
 	
 	cerr << "Author:  Aaron Quinlan (aaronquinlan@gmail.com)" << endl;
 	
-	cerr << "Summary: Mask a fasta file based on feature coordinates." << endl << endl;
+	cerr << "Summary: Mask a fasta file based on BED coordinates." << endl << endl;
 
-	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -fi <fasta> -out <fasta> -bed <bed/gff/vcf>" << endl << endl;
+	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -fi -out -bed" << endl << endl;
 
 	cerr << "Options:" << endl;
 	cerr << "\t-fi\tInput FASTA file" << endl;
-	cerr << "\t-bed\tBED/GFF/VCF file of ranges to mask in -fi" << endl;
+	cerr << "\t-bed\tBED file of ranges to mask in -fi" << endl;
 	cerr << "\t-fo\tOutput FASTA file" << endl;
 	cerr << "\t-soft\tEnforce \"soft\" masking.  That is, instead of masking with Ns," << endl;
 	cerr << "\t\tmask with lower-case bases." << endl;

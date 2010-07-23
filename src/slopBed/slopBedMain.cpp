@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
 	
 	if (!showHelp) {
 		BedSlop *bc = new BedSlop(bedFile, genomeFile, forceStrand, leftSlop, rightSlop);
-		delete bc;		
+		bc->DetermineBedInput();		
 		
 		return 0;
 	}
@@ -142,12 +142,12 @@ void ShowHelp(void) {
 	
 	cerr << "Author:  Aaron Quinlan (aaronquinlan@gmail.com)" << endl;
 	
-	cerr << "Summary: Add requested base pairs of \"slop\" to each feature." << endl << endl;
+	cerr << "Summary: Add requested base pairs of \"slop\" to each BED entry." << endl << endl;
 
-	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -i <bed/gff/vcf> -g <genome> [-b <int> or (-l and -r)]" << endl << endl;
+	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -i <bed> -g <genome> [-b <int> or (-l and -r)]" << endl << endl;
 	
 	cerr << "Options: " << endl;
-	cerr << "\t-b\t"            	<< "Increase the BED/GFF/VCF entry by -b base pairs in each direction." << endl;
+	cerr << "\t-b\t"            	<< "Increase the BED entry by -b base pairs in each direction." << endl;
 	cerr 							<< "\t\t- (Integer)" << endl;
 		
 	cerr << "\t-l\t"            	<< "The number of base pairs to subtract from the start coordinate." << endl;

@@ -1,9 +1,9 @@
 // ***************************************************************************
-// BamReader.cpp (c) 2009 Derek Barnett, Michael Strï¿½mberg
+// BamReader.cpp (c) 2009 Derek Barnett, Michael Strömberg
 // Marth Lab, Department of Biology, Boston College
 // All rights reserved.
 // ---------------------------------------------------------------------------
-// Last modified: 14 April 2010 (DB)
+// Last modified: 11 January 2010(DB)
 // ---------------------------------------------------------------------------
 // Uses BGZF routines were adapted from the bgzf.c code developed at the Broad
 // Institute.
@@ -23,23 +23,13 @@
 using namespace BamTools;
 using namespace std;
 
-namespace BamTools {
-  struct BamAlignmentSupportData {
-      string   AllCharData;
-      uint32_t BlockLength;
-      uint32_t NumCigarOperations;
-      uint32_t QueryNameLength;
-      uint32_t QuerySequenceLength;
-  };
-} // namespace BamTools
-
 struct BamReader::BamReaderPrivate {
 
     // -------------------------------
     // data members
     // -------------------------------
 
-    // general file data
+    // general data
     BgzfData  mBGZF;
     string    HeaderText;
     BamIndex  Index;
@@ -48,9 +38,6 @@ struct BamReader::BamReaderPrivate {
     int64_t   AlignmentsBeginOffset;
     string    Filename;
     string    IndexFilename;
-    
-    // system data
-    bool IsBigEndian;
 
     // user-specified region values
     bool IsRegionSpecified;
@@ -81,7 +68,10 @@ struct BamReader::BamReaderPrivate {
     bool GetNextAlignment(BamAlignment& bAlignment);
 
     // access auxiliary data
-    int GetReferenceID(const string& refName) const;
+    const string GetHeaderText(void) const;
+    const int GetReferenceCount(void) const;
+    const RefVector GetReferenceData(void) const;
+    const int GetReferenceID(const string& refName) const;
 
     // index operations
     bool CreateIndex(void);
@@ -94,8 +84,8 @@ struct BamReader::BamReaderPrivate {
 
     // calculate bins that overlap region ( left to reference end for now )
     int BinsFromRegion(int refID, int left, uint16_t[MAX_BIN]);
-    // fills out character data for BamAlignment data
-    bool BuildCharData(BamAlignment& bAlignment, const BamAlignmentSupportData& supportData);
+    // calculates alignment end position based on starting position and provided CIGAR operations
+    int CalculateAlignmentEnd(const int& position, const std::vector<CigarOp>& cigarData);
     // calculate file offset for first alignment chunk overlapping 'left'
     int64_t GetOffset(int refID, int left);
     // checks to see if alignment overlaps current region
@@ -103,7 +93,7 @@ struct BamReader::BamReaderPrivate {
     // retrieves header text from BAM file
     void LoadHeaderData(void);
     // retrieves BAM alignment under file pointer
-    bool LoadNextAlignment(BamAlignment& bAlignment, BamAlignmentSupportData& supportData);
+    bool LoadNextAlignment(BamAlignment& bAlignment);
     // builds reference data structure from BAM file
     void LoadReferenceData(void);
 
@@ -121,6 +111,8 @@ struct BamReader::BamReaderPrivate {
     bool LoadIndex(void);
     // simplifies index by merging 'chunks'
     void MergeChunks(void);
+    // round-up 32-bit integer to next power-of-2
+    void Roundup32(int& value);
     // saves index to BAM index file
     bool WriteIndex(void);
 };
@@ -150,10 +142,10 @@ bool BamReader::Rewind(void) { return d->Rewind(); }
 bool BamReader::GetNextAlignment(BamAlignment& bAlignment) { return d->GetNextAlignment(bAlignment); }
 
 // access auxiliary data
-const string BamReader::GetHeaderText(void) const { return d->HeaderText; }
-int BamReader::GetReferenceCount(void) const { return d->References.size(); }
+const string    BamReader::GetHeaderText(void) const { return d->HeaderText; }
+const int       BamReader::GetReferenceCount(void) const { return d->References.size(); }
 const RefVector BamReader::GetReferenceData(void) const { return d->References; }
-int BamReader::GetReferenceID(const string& refName) const { return d->GetReferenceID(refName); }
+const int       BamReader::GetReferenceID(const string& refName) const { return d->GetReferenceID(refName); }
 
 // index operations
 bool BamReader::CreateIndex(void) { return d->CreateIndex(); }
@@ -171,9 +163,7 @@ BamReader::BamReaderPrivate::BamReaderPrivate(void)
     , CurrentLeft(0)
     , DNA_LOOKUP("=ACMGRSVTWYHKDBN")
     , CIGAR_LOOKUP("MIDNSHP")
-{ 
-    IsBigEndian = SystemIsBigEndian();
-}
+{ }
 
 // destructor
 BamReader::BamReaderPrivate::~BamReaderPrivate(void) {
@@ -201,138 +191,6 @@ int BamReader::BamReaderPrivate::BinsFromRegion(int refID, int left, uint16_t li
 
     // return number of bins stored
     return i;
-}
-
-bool BamReader::BamReaderPrivate::BuildCharData(BamAlignment& bAlignment, const BamAlignmentSupportData& supportData) {
-  
-    // calculate character lengths/offsets
-    const unsigned int dataLength     = supportData.BlockLength - BAM_CORE_SIZE;
-    const unsigned int seqDataOffset  = supportData.QueryNameLength + (supportData.NumCigarOperations * 4);
-    const unsigned int qualDataOffset = seqDataOffset + (supportData.QuerySequenceLength+1)/2;
-    const unsigned int tagDataOffset  = qualDataOffset + supportData.QuerySequenceLength;
-    const unsigned int tagDataLength  = dataLength - tagDataOffset;
-      
-    // set up char buffers
-    const char* allCharData = supportData.AllCharData.data();
-    const char* seqData     = ((const char*)allCharData) + seqDataOffset;
-    const char* qualData    = ((const char*)allCharData) + qualDataOffset;
-    char* tagData     = ((char*)allCharData) + tagDataOffset;
-  
-    // save query sequence
-    bAlignment.QueryBases.clear();
-    bAlignment.QueryBases.reserve(supportData.QuerySequenceLength);
-    for (unsigned int i = 0; i < supportData.QuerySequenceLength; ++i) {
-        char singleBase = DNA_LOOKUP[ ( ( seqData[(i/2)] >> (4*(1-(i%2)))) & 0xf ) ];
-        bAlignment.QueryBases.append(1, singleBase);
-    }
-  
-    // save qualities, converting from numeric QV to 'FASTQ-style' ASCII character
-    bAlignment.Qualities.clear();
-    bAlignment.Qualities.reserve(supportData.QuerySequenceLength);
-    for (unsigned int i = 0; i < supportData.QuerySequenceLength; ++i) {
-        char singleQuality = (char)(qualData[i]+33);
-        bAlignment.Qualities.append(1, singleQuality);
-    }
-    
-    // parse CIGAR to build 'AlignedBases'
-    bAlignment.AlignedBases.clear();
-    bAlignment.AlignedBases.reserve(supportData.QuerySequenceLength);
-    
-    if (bAlignment.QueryBases.empty() == false) {
-        int k = 0;
-        vector<CigarOp>::const_iterator cigarIter = bAlignment.CigarData.begin();
-        vector<CigarOp>::const_iterator cigarEnd  = bAlignment.CigarData.end();
-        for ( ; cigarIter != cigarEnd; ++cigarIter ) {
-            const CigarOp& op = (*cigarIter);
-            switch(op.Type) {
-          
-                case ('M') :
-                case ('I') :
-                    bAlignment.AlignedBases.append(bAlignment.QueryBases.substr(k, op.Length)); // for 'M', 'I' - write bases
-                    // fall through
-            
-                case ('S') :
-                    k += op.Length;                                     // for 'S' - soft clip, skip over query bases
-                    break;
-                
-                case ('D') :
-                    bAlignment.AlignedBases.append(op.Length, '-');     // for 'D' - write gap character
-                    break;
-                
-                case ('P') :
-                    bAlignment.AlignedBases.append( op.Length, '*' );   // for 'P' - write padding character
-                    break;
-                
-                case ('N') :
-                    bAlignment.AlignedBases.append( op.Length, 'N' );  // for 'N' - write N's, skip bases in original query sequence
-                    //k+=op.Length; 
-                    break;
-                
-                case ('H') :
-                    break;  // for 'H' - hard clip, do nothing to AlignedBases, move to next op
-                
-                default:
-                    printf("ERROR: Invalid Cigar op type\n"); // shouldn't get here
-                    exit(1);
-            }
-        }
-    }
-    else {bAlignment.AlignedBases = bAlignment.QueryBases;}
-
-    // -----------------------
-    // Added: 3-25-2010 DWB
-    // Fixed: endian-correctness for tag data
-    // -----------------------
-    if ( IsBigEndian ) {
-        int i = 0;
-        while ( (unsigned int)i < tagDataLength ) {
-          
-            i += 2; // skip tag type (e.g. "RG", "NM", etc)
-            uint8_t type = toupper(tagData[i]);     // lower & upper case letters have same meaning 
-            ++i;                                    // skip value type
-    
-            switch (type) {
-                
-                case('A') :
-                case('C') : 
-                    ++i;
-                    break;
-
-                case('S') : 
-                    SwapEndian_16p(&tagData[i]); 
-                    i+=2; // sizeof(uint16_t)
-                    break;
-                    
-                case('F') :
-                case('I') : 
-                    SwapEndian_32p(&tagData[i]);
-                    i+=4; // sizeof(uint32_t)
-                    break;
-                
-                case('D') : 
-                    SwapEndian_64p(&tagData[i]);
-                    i+=8; // sizeof(uint64_t) 
-                    break;
-                
-                case('H') :
-                case('Z') : 
-                    while (tagData[i]) { ++i; }
-                    ++i; // increment one more for null terminator
-                    break;
-                
-                default : 
-                    printf("ERROR: Invalid tag value type\n"); // shouldn't get here
-                    exit(1);
-            }
-        }
-    }
-    // store TagData
-    bAlignment.TagData.clear();
-    bAlignment.TagData.resize(tagDataLength);
-    memcpy((char*)bAlignment.TagData.data(), tagData, tagDataLength);
-    
-    // return success
-    return true;
 }
 
 // populates BAM index data structure from BAM file data
@@ -465,6 +323,24 @@ bool BamReader::BamReaderPrivate::BuildIndex(void) {
     return Rewind();
 }
 
+// calculates alignment end position based on starting position and provided CIGAR operations
+int BamReader::BamReaderPrivate::CalculateAlignmentEnd(const int& position, const vector<CigarOp>& cigarData) {
+
+    // initialize alignment end to starting position
+    int alignEnd = position;
+
+    // iterate over cigar operations
+    vector<CigarOp>::const_iterator cigarIter = cigarData.begin();
+    vector<CigarOp>::const_iterator cigarEnd  = cigarData.end();
+    for ( ; cigarIter != cigarEnd; ++cigarIter) {
+        char cigarType = (*cigarIter).Type;
+        if ( cigarType == 'M' || cigarType == 'D' || cigarType == 'N' ) {
+            alignEnd += (*cigarIter).Length;
+        }
+    }
+    return alignEnd;
+}
+
 
 // clear index data structure
 void BamReader::BamReaderPrivate::ClearIndex(void) {
@@ -485,17 +361,17 @@ bool BamReader::BamReaderPrivate::CreateIndex(void) {
     // clear out index
     ClearIndex();
 
-    // build (& save) index from BAM file
+	// build (& save) index from BAM file
     bool ok = true;
     ok &= BuildIndex();
     ok &= WriteIndex();
 
-    // return success/fail
+	// return success/fail
     return ok;
 }
 
 // returns RefID for given RefName (returns References.size() if not found)
-int BamReader::BamReaderPrivate::GetReferenceID(const string& refName) const {
+const int BamReader::BamReaderPrivate::GetReferenceID(const string& refName) const {
 
     // retrieve names from reference data
     vector<string> refNames;
@@ -511,28 +387,21 @@ int BamReader::BamReaderPrivate::GetReferenceID(const string& refName) const {
 
 // get next alignment (from specified region, if given)
 bool BamReader::BamReaderPrivate::GetNextAlignment(BamAlignment& bAlignment) {
-    
-    BamAlignmentSupportData supportData;
-  
+
     // if valid alignment available
-    if ( LoadNextAlignment(bAlignment, supportData) ) {
+    if ( LoadNextAlignment(bAlignment) ) {
 
         // if region not specified, return success
-        if ( !IsRegionSpecified ) { 
-        
-          bool ok = BuildCharData(bAlignment, supportData);
-
-          return ok; 
-        }
+        if ( !IsRegionSpecified ) { return true; }
 
         // load next alignment until region overlap is found
         while ( !IsOverlap(bAlignment) ) {
             // if no valid alignment available (likely EOF) return failure
-            if ( !LoadNextAlignment(bAlignment, supportData) ) { return false; }
+            if ( !LoadNextAlignment(bAlignment) ) { return false; }
         }
+
         // return success (alignment found that overlaps region)
-        bool ok = BuildCharData(bAlignment, supportData);
-        return ok;
+        return true;
     }
 
     // no valid alignment
@@ -617,12 +486,15 @@ void BamReader::BamReaderPrivate::InsertLinearOffset(LinearOffsetVector& offsets
 {
     // get converted offsets
     int beginOffset = bAlignment.Position >> BAM_LIDX_SHIFT;
-    int endOffset   = (bAlignment.GetEndPosition() - 1) >> BAM_LIDX_SHIFT;
+    int endOffset   = ( CalculateAlignmentEnd(bAlignment.Position, bAlignment.CigarData) - 1) >> BAM_LIDX_SHIFT;
 
     // resize vector if necessary
     int oldSize = offsets.size();
     int newSize = endOffset + 1;
-    if ( oldSize < newSize ) { offsets.resize(newSize, 0); }
+    if ( oldSize < newSize ) {        
+        Roundup32(newSize);
+        offsets.resize(newSize, 0);
+    }
 
     // store offset
     for(int i = beginOffset + 1; i <= endOffset ; ++i) {
@@ -642,7 +514,7 @@ bool BamReader::BamReaderPrivate::IsOverlap(BamAlignment& bAlignment) {
     if ( bAlignment.Position >= CurrentLeft) { return true; }
 
     // return whether alignment end overlaps left boundary
-    return ( bAlignment.GetEndPosition() >= CurrentLeft );
+    return ( CalculateAlignmentEnd(bAlignment.Position, bAlignment.CigarData) >= CurrentLeft );
 }
 
 // jumps to specified region(refID, leftBound) in BAM file, returns success/fail
@@ -651,22 +523,22 @@ bool BamReader::BamReaderPrivate::Jump(int refID, int position) {
     // if data exists for this reference and position is valid    
     if ( References.at(refID).RefHasAlignments && (position <= References.at(refID).RefLength) ) {
 
-        // set current region
+		// set current region
         CurrentRefID = refID;
         CurrentLeft  = position;
         IsRegionSpecified = true;
 
-        // calculate offset
+		// calculate offset
         int64_t offset = GetOffset(CurrentRefID, CurrentLeft);
 
-        // if in valid offset, return failure
+		// if in valid offset, return failure
         if ( offset == -1 ) { return false; }
 
-        // otherwise return success of seek operation
+		// otherwise return success of seek operation
         else { return mBGZF.Seek(offset); }
     }
 
-    // invalid jump request parameters, return failure
+	// invalid jump request parameters, return failure
     return false;
 }
 
@@ -687,9 +559,8 @@ void BamReader::BamReaderPrivate::LoadHeaderData(void) {
 
     // get BAM header text length
     mBGZF.Read(buffer, 4);
-    unsigned int headerTextLength = BgzfData::UnpackUnsignedInt(buffer);
-    if ( IsBigEndian ) { SwapEndian_32(headerTextLength); }
-    
+    const unsigned int headerTextLength = BgzfData::UnpackUnsignedInt(buffer);
+
     // get BAM header text
     char* headerText = (char*)calloc(headerTextLength + 1, 1);
     mBGZF.Read(headerText, headerTextLength);
@@ -715,8 +586,8 @@ bool BamReader::BamReaderPrivate::LoadIndex(void) {
         return false;
     }
 
-    size_t elementsRead = 0;
-        
+	size_t elementsRead = 0;
+	
     // see if index is valid BAM index
     char magic[4];
     elementsRead = fread(magic, 1, 4, indexStream);
@@ -729,8 +600,7 @@ bool BamReader::BamReaderPrivate::LoadIndex(void) {
     // get number of reference sequences
     uint32_t numRefSeqs;
     elementsRead = fread(&numRefSeqs, 4, 1, indexStream);
-    if ( IsBigEndian ) { SwapEndian_32(numRefSeqs); }
-    
+
     // intialize space for BamIndex data structure
     Index.reserve(numRefSeqs);
 
@@ -740,7 +610,6 @@ bool BamReader::BamReaderPrivate::LoadIndex(void) {
         // get number of bins for this reference sequence
         int32_t numBins;
         elementsRead = fread(&numBins, 4, 1, indexStream);
-        if ( IsBigEndian ) { SwapEndian_32(numBins); }
 
         if (numBins > 0) {
             RefData& refEntry = References[i];
@@ -761,11 +630,6 @@ bool BamReader::BamReaderPrivate::LoadIndex(void) {
             uint32_t numChunks;
             elementsRead = fread(&numChunks, 4, 1, indexStream);
 
-            if ( IsBigEndian ) { 
-              SwapEndian_32(binID);
-              SwapEndian_32(numChunks);
-            }
-            
             // intialize ChunkVector
             ChunkVector regionChunks;
             regionChunks.reserve(numChunks);
@@ -779,11 +643,6 @@ bool BamReader::BamReaderPrivate::LoadIndex(void) {
                 elementsRead = fread(&left, 8, 1, indexStream);
                 elementsRead = fread(&right, 8, 1, indexStream);
 
-                if ( IsBigEndian ) {
-                    SwapEndian_64(left);
-                    SwapEndian_64(right);
-                }
-                
                 // save ChunkPair
                 regionChunks.push_back( Chunk(left, right) );
             }
@@ -800,7 +659,6 @@ bool BamReader::BamReaderPrivate::LoadIndex(void) {
         // get number of linear offsets
         int32_t numLinearOffsets;
         elementsRead = fread(&numLinearOffsets, 4, 1, indexStream);
-        if ( IsBigEndian ) { SwapEndian_32(numLinearOffsets); }
 
         // intialize LinearOffsetVector
         LinearOffsetVector offsets;
@@ -811,7 +669,6 @@ bool BamReader::BamReaderPrivate::LoadIndex(void) {
         for (int j = 0; j < numLinearOffsets; ++j) {
             // read a linear offset & store
             elementsRead = fread(&linearOffset, 8, 1, indexStream);
-            if ( IsBigEndian ) { SwapEndian_64(linearOffset); }
             offsets.push_back(linearOffset);
         }
 
@@ -828,77 +685,131 @@ bool BamReader::BamReaderPrivate::LoadIndex(void) {
 }
 
 // populates BamAlignment with alignment data under file pointer, returns success/fail
-bool BamReader::BamReaderPrivate::LoadNextAlignment(BamAlignment& bAlignment, BamAlignmentSupportData& supportData) {
+bool BamReader::BamReaderPrivate::LoadNextAlignment(BamAlignment& bAlignment) {
 
     // read in the 'block length' value, make sure it's not zero
     char buffer[4];
     mBGZF.Read(buffer, 4);
-    supportData.BlockLength = BgzfData::UnpackUnsignedInt(buffer);
-    if ( IsBigEndian ) { SwapEndian_32(supportData.BlockLength); }
-    if ( supportData.BlockLength == 0 ) { return false; }
+    const unsigned int blockLength = BgzfData::UnpackUnsignedInt(buffer);
+    if ( blockLength == 0 ) { return false; }
+
+    // keep track of bytes read as method progresses
+    int bytesRead = 4;
 
     // read in core alignment data, make sure the right size of data was read
     char x[BAM_CORE_SIZE];
     if ( mBGZF.Read(x, BAM_CORE_SIZE) != BAM_CORE_SIZE ) { return false; }
+    bytesRead += BAM_CORE_SIZE;
 
-    if ( IsBigEndian ) {
-        for ( int i = 0; i < BAM_CORE_SIZE; i+=sizeof(uint32_t) ) { 
-          SwapEndian_32p(&x[i]); 
-        }
-    }
-    
-    // set BamAlignment 'core' and 'support' data
+    // set BamAlignment 'core' data and character data lengths
+    unsigned int tempValue;
+    unsigned int queryNameLength;
+    unsigned int numCigarOperations;
+    unsigned int querySequenceLength;
+
     bAlignment.RefID    = BgzfData::UnpackSignedInt(&x[0]);
     bAlignment.Position = BgzfData::UnpackSignedInt(&x[4]);
-    
-    
-    unsigned int tempValue = BgzfData::UnpackUnsignedInt(&x[8]);
+
+    tempValue             = BgzfData::UnpackUnsignedInt(&x[8]);
     bAlignment.Bin        = tempValue >> 16;
     bAlignment.MapQuality = tempValue >> 8 & 0xff;
-    supportData.QueryNameLength = tempValue & 0xff;
+    queryNameLength       = tempValue & 0xff;
 
-    tempValue = BgzfData::UnpackUnsignedInt(&x[12]);
+    tempValue                = BgzfData::UnpackUnsignedInt(&x[12]);
     bAlignment.AlignmentFlag = tempValue >> 16;
-    supportData.NumCigarOperations = tempValue & 0xffff;
+    numCigarOperations       = tempValue & 0xffff;
 
-    supportData.QuerySequenceLength = BgzfData::UnpackUnsignedInt(&x[16]);
+    querySequenceLength     = BgzfData::UnpackUnsignedInt(&x[16]);
     bAlignment.MateRefID    = BgzfData::UnpackSignedInt(&x[20]);
     bAlignment.MatePosition = BgzfData::UnpackSignedInt(&x[24]);
     bAlignment.InsertSize   = BgzfData::UnpackSignedInt(&x[28]);
-    
-    // store 'all char data' and cigar ops
-    const unsigned int dataLength      = supportData.BlockLength - BAM_CORE_SIZE;
-    const unsigned int cigarDataOffset = supportData.QueryNameLength;
-    
-    char*     allCharData = (char*)calloc(sizeof(char), dataLength);
-    uint32_t* cigarData   = (uint32_t*)(allCharData + cigarDataOffset);
-    
-    // read in character data - make sure proper data size was read
+
+    // calculate lengths/offsets
+    const unsigned int dataLength      = blockLength - BAM_CORE_SIZE;
+    const unsigned int cigarDataOffset = queryNameLength;
+    const unsigned int seqDataOffset   = cigarDataOffset + (numCigarOperations * 4);
+    const unsigned int qualDataOffset  = seqDataOffset + (querySequenceLength+1)/2;
+    const unsigned int tagDataOffset   = qualDataOffset + querySequenceLength;
+    const unsigned int tagDataLen      = dataLength - tagDataOffset;
+
+    // set up destination buffers for character data
+    char* allCharData   = (char*)calloc(sizeof(char), dataLength);
+    uint32_t* cigarData = (uint32_t*)(allCharData + cigarDataOffset);
+    char* seqData       = ((char*)allCharData) + seqDataOffset;
+    char* qualData      = ((char*)allCharData) + qualDataOffset;
+    char* tagData       = ((char*)allCharData) + tagDataOffset;
+
+    // get character data - make sure proper data size was read
     if ( mBGZF.Read(allCharData, dataLength) != (signed int)dataLength) { return false; }
     else {
-         
-        // store alignment name and length
-        bAlignment.Name.assign((const char*)(allCharData));
-        bAlignment.Length = supportData.QuerySequenceLength;
-      
-        // store remaining 'allCharData' in supportData structure
-        supportData.AllCharData.assign((const char*)allCharData, dataLength);
-        
-        // save CigarOps for BamAlignment
-        bAlignment.CigarData.clear();
-        for (unsigned int i = 0; i < supportData.NumCigarOperations; ++i) {
 
-            // swap if necessary
-            if ( IsBigEndian ) { SwapEndian_32(cigarData[i]); }
-          
-            // build CigarOp structure
+        bytesRead += dataLength;
+
+        // clear out any previous string data
+        bAlignment.Name.clear();
+        bAlignment.QueryBases.clear();
+        bAlignment.Qualities.clear();
+        bAlignment.AlignedBases.clear();
+        bAlignment.CigarData.clear();
+        bAlignment.TagData.clear();
+
+        // save name
+        bAlignment.Name = (string)((const char*)(allCharData));
+
+        // save query sequence
+        for (unsigned int i = 0; i < querySequenceLength; ++i) {
+            char singleBase = DNA_LOOKUP[ ( ( seqData[(i/2)] >> (4*(1-(i%2)))) & 0xf ) ];
+            bAlignment.QueryBases.append( 1, singleBase );
+        }
+
+        // save sequence length
+        bAlignment.Length = bAlignment.QueryBases.length();
+
+        // save qualities, convert from numeric QV to FASTQ character
+        for (unsigned int i = 0; i < querySequenceLength; ++i) {
+            char singleQuality = (char)(qualData[i]+33);
+            bAlignment.Qualities.append( 1, singleQuality );
+        }
+
+        // save CIGAR-related data;
+        int k = 0;
+        for (unsigned int i = 0; i < numCigarOperations; ++i) {
+
+            // build CigarOp struct
             CigarOp op;
             op.Length = (cigarData[i] >> BAM_CIGAR_SHIFT);
             op.Type   = CIGAR_LOOKUP[ (cigarData[i] & BAM_CIGAR_MASK) ];
 
             // save CigarOp
             bAlignment.CigarData.push_back(op);
+
+            // build AlignedBases string
+            switch (op.Type) {
+                case ('M') :
+                case ('I') : bAlignment.AlignedBases.append( bAlignment.QueryBases.substr(k, op.Length) ); // for 'M', 'I' - write bases
+                case ('S') : k += op.Length;                                                               // for 'S' - skip over query bases
+                             break;
+
+                case ('D') : bAlignment.AlignedBases.append( op.Length, '-' );	// for 'D' - write gap character
+                             break;
+
+                case ('P') : bAlignment.AlignedBases.append( op.Length, '*' );	// for 'P' - write padding character;
+                             break;
+
+                case ('N') : bAlignment.AlignedBases.append( op.Length, 'N' );  // for 'N' - write N's, skip bases in query sequence
+                             //k += op.Length;
+                             break;
+
+                case ('H') : break; 					        // for 'H' - do nothing, move to next op
+
+                default    : printf("ERROR: Invalid Cigar op type\n"); // shouldn't get here
+                             exit(1);
+            }
         }
+
+        // read in the tag data
+        bAlignment.TagData.resize(tagDataLen);
+        memcpy((char*)bAlignment.TagData.data(), tagData, tagDataLen);
     }
 
     free(allCharData);
@@ -911,8 +822,7 @@ void BamReader::BamReaderPrivate::LoadReferenceData(void) {
     // get number of reference sequences
     char buffer[4];
     mBGZF.Read(buffer, 4);
-    unsigned int numberRefSeqs = BgzfData::UnpackUnsignedInt(buffer);
-    if ( IsBigEndian ) { SwapEndian_32(numberRefSeqs); }
+    const unsigned int numberRefSeqs = BgzfData::UnpackUnsignedInt(buffer);
     if (numberRefSeqs == 0) { return; }
     References.reserve((int)numberRefSeqs);
 
@@ -921,15 +831,13 @@ void BamReader::BamReaderPrivate::LoadReferenceData(void) {
 
         // get length of reference name
         mBGZF.Read(buffer, 4);
-        unsigned int refNameLength = BgzfData::UnpackUnsignedInt(buffer);
-        if ( IsBigEndian ) { SwapEndian_32(refNameLength); }
+        const unsigned int refNameLength = BgzfData::UnpackUnsignedInt(buffer);
         char* refName = (char*)calloc(refNameLength, 1);
 
         // get reference name and reference sequence length
         mBGZF.Read(refName, refNameLength);
         mBGZF.Read(buffer, 4);
-        int refLength = BgzfData::UnpackSignedInt(buffer);
-        if ( IsBigEndian ) { SwapEndian_32(refLength); }
+        const int refLength = BgzfData::UnpackSignedInt(buffer);
 
         // store data for reference
         RefData aReference;
@@ -1038,6 +946,17 @@ bool BamReader::BamReaderPrivate::Rewind(void) {
     return mBGZF.Seek(AlignmentsBeginOffset);
 }
 
+// rounds value up to next power-of-2 (used in index building)
+void BamReader::BamReaderPrivate::Roundup32(int& value) {    
+    --value;
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    ++value;
+}
+
 // saves index data to BAM index file (".bai"), returns success/fail
 bool BamReader::BamReaderPrivate::WriteIndex(void) {
 
@@ -1053,7 +972,6 @@ bool BamReader::BamReaderPrivate::WriteIndex(void) {
 
     // write number of reference sequences
     int32_t numReferenceSeqs = Index.size();
-    if ( IsBigEndian ) { SwapEndian_32(numReferenceSeqs); }
     fwrite(&numReferenceSeqs, 4, 1, indexStream);
 
     // iterate over reference sequences
@@ -1068,7 +986,6 @@ bool BamReader::BamReaderPrivate::WriteIndex(void) {
 
         // write number of bins
         int32_t binCount = binMap.size();
-        if ( IsBigEndian ) { SwapEndian_32(binCount); }
         fwrite(&binCount, 4, 1, indexStream);
 
         // iterate over bins
@@ -1077,16 +994,14 @@ bool BamReader::BamReaderPrivate::WriteIndex(void) {
         for ( ; binIter != binEnd; ++binIter ) {
 
             // get bin data (key and chunk vector)
-            uint32_t binKey = (*binIter).first;
+            const uint32_t& binKey = (*binIter).first;
             const ChunkVector& binChunks = (*binIter).second;
 
             // save BAM bin key
-            if ( IsBigEndian ) { SwapEndian_32(binKey); }
             fwrite(&binKey, 4, 1, indexStream);
 
             // save chunk count
             int32_t chunkCount = binChunks.size();
-            if ( IsBigEndian ) { SwapEndian_32(chunkCount); }
             fwrite(&chunkCount, 4, 1, indexStream);
 
             // iterate over chunks
@@ -1096,14 +1011,9 @@ bool BamReader::BamReaderPrivate::WriteIndex(void) {
 
                 // get current chunk data
                 const Chunk& chunk    = (*chunkIter);
-                uint64_t start = chunk.Start;
-                uint64_t stop  = chunk.Stop;
+                const uint64_t& start = chunk.Start;
+                const uint64_t& stop  = chunk.Stop;
 
-                if ( IsBigEndian ) {
-                    SwapEndian_64(start);
-                    SwapEndian_64(stop);
-                }
-                
                 // save chunk offsets
                 fwrite(&start, 8, 1, indexStream);
                 fwrite(&stop,  8, 1, indexStream);
@@ -1112,7 +1022,6 @@ bool BamReader::BamReaderPrivate::WriteIndex(void) {
 
         // write linear offsets size
         int32_t offsetSize = offsets.size();
-        if ( IsBigEndian ) { SwapEndian_32(offsetSize); }
         fwrite(&offsetSize, 4, 1, indexStream);
 
         // iterate over linear offsets
@@ -1121,8 +1030,7 @@ bool BamReader::BamReaderPrivate::WriteIndex(void) {
         for ( ; offsetIter != offsetEnd; ++offsetIter ) {
 
             // write linear offset value
-            uint64_t linearOffset = (*offsetIter);
-            if ( IsBigEndian ) { SwapEndian_64(linearOffset); }
+            const uint64_t& linearOffset = (*offsetIter);
             fwrite(&linearOffset, 8, 1, indexStream);
         }
     }

@@ -31,6 +31,9 @@ public:
 	// destructor
 	~BedSort(void);
 
+	// write BED to stdout
+	void reportBed(const BED &);
+
 	void SortBed();				// the default.  sorts by chrom (asc.) then by start (asc.)
 	void SortBedBySizeAsc();
 	void SortBedBySizeDesc();
@@ -40,11 +43,9 @@ public:
 	void SortBedByChromThenScoreDesc();
 	
 private:	
-	string _bedFile;
+	string bedFile;
 
 	// instance of a bed file class.
-	BedFile *_bed;
-
-	// methods
+	BedFile *bed;
 
 };

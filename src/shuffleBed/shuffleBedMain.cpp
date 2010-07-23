@@ -105,7 +105,9 @@ int main(int argc, char* argv[]) {
 	
 	if (!showHelp) {
 		BedShuffle *bc = new BedShuffle(bedFile, genomeFile, excludeFile, haveSeed, haveExclude, sameChrom, seed);
-		delete bc;
+		
+		bc->DetermineBedInput();
+
 		return 0;
 	}
 	else {
@@ -119,12 +121,12 @@ void ShowHelp(void) {
 	
 	cerr << "Author:  Aaron Quinlan (aaronquinlan@gmail.com)" << endl;
 	
-	cerr << "Summary: Randomly permute the locations of a feature file among a genome." << endl << endl;
+	cerr << "Summary: Randomly permute the locations of a BED file among a genome." << endl << endl;
 
-	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -i <bed/gff/vcf> -g <genome>" << endl << endl;
+	cerr << "Usage:   " << PROGRAM_NAME << " [OPTIONS] -i <bed> -g <genome>" << endl << endl;
 	
 	cerr << "Options: " << endl;
-	cerr << "\t-excl\t"           	<< "A BED/GFF/VCF file of coordinates in which features in -i" << endl;
+	cerr << "\t-excl\t"           	<< "A BED file of coordinates in which features in -i" << endl;
 	cerr							<< "\t\tshould not be placed (e.g. gaps.bed)." << endl << endl;
 
 	cerr << "\t-chrom\t"      		<< "Keep features in -i on the same chromosome."<< endl; 

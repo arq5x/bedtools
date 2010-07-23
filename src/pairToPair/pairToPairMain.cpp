@@ -34,7 +34,6 @@ int main(int argc, char* argv[]) {
 	
 	// input arguments
 	float overlapFraction = 1E-9;
-    int slop = 0;
 	string searchType = "both";
 
 	// flags to track parameters
@@ -42,9 +41,8 @@ int main(int argc, char* argv[]) {
 	bool haveBedB = false;
 	bool haveSearchType = false;
 	bool haveFraction = false;
-	bool ignoreStrand = false;
-    bool haveSlop = false;	
-    bool strandedSlop = false;
+	bool ignoreStrand = false;	
+
 	// check to see if we should print out some help
 	if(argc <= 1) showHelp = true;
 
@@ -92,16 +90,6 @@ int main(int argc, char* argv[]) {
 				i++;
 			}
 		}
-		else if(PARAMETER_CHECK("-slop", 5, parameterLength)) {
-			if ((i+1) < argc) {
-				haveSlop = true;
-				slop = atoi(argv[i + 1]);
-				i++;
-			}
-		}
-		else if(PARAMETER_CHECK("-ss", 3, parameterLength)) {
-            strandedSlop = true;
-		}
 		else if(PARAMETER_CHECK("-is", 3, parameterLength)) {
 			ignoreStrand = true;
 		}
@@ -118,20 +106,15 @@ int main(int argc, char* argv[]) {
 		showHelp = true;
 	}
 	
-	if (haveSearchType && (searchType != "neither") && (searchType != "both") && (searchType != "either")) {
+	if (haveSearchType && (searchType != "neither") && (searchType != "both")) {
 		cerr << endl << "*****" << endl << "*****ERROR: Request \"both\" or \"neither\"" << endl << "*****" << endl;
-		showHelp = true;		
-	}
-	
-	if (strandedSlop == true && haveSlop == false) {
-		cerr << endl << "*****" << endl << "*****ERROR: Need a -slop value if requesting -ss." << endl << "*****" << endl;
 		showHelp = true;		
 	}
 
 	if (!showHelp) {
 
-		PairToPair *bi = new PairToPair(bedAFile, bedBFile, overlapFraction, searchType, ignoreStrand, slop, strandedSlop);
-		delete bi;
+		PairToPair *bi = new PairToPair(bedAFile, bedBFile, overlapFraction, searchType, ignoreStrand);
+		bi->DetermineBedPEInput();
 		return 0;
 	}
 	else {
@@ -139,8 +122,8 @@ int main(int argc, char* argv[]) {
 	}
 }
 
-
 void ShowHelp(void) {
+
 	cerr << endl << "Program: " << PROGRAM_NAME << " (v" << VERSION << ")" << endl;
 	
 	cerr << "Author:  Aaron Quinlan (aaronquinlan@gmail.com)" << endl;
@@ -156,18 +139,9 @@ void ShowHelp(void) {
 	cerr << "\t-type \t"				<< "Approach to reporting overlaps between A and B." << endl << endl;
 	cerr 								<< "\t\tneither\tReport overlaps if neither end of A overlaps B." << endl;
 
-	cerr 								<< "\t\teither\tReport overlaps if either ends of A overlap B." << endl;
-
 	cerr 								<< "\t\tboth\tReport overlaps if both ends of A overlap B." << endl;
-	cerr								<< "\t\t\t- Default = both." << endl << endl;
+	cerr									<< "\t\t- Default." << endl << endl;
 
-	cerr << "\t-slop \t"				<< "The amount of slop (in b.p.). to be added to each footprint." << endl << endl;
-
-	cerr << "\t-ss\t"	    			<< "Add slop based to each BEDPE footprint based on strand." << endl;
-	cerr 								<< "\t\t- If strand is \"+\", slop is only added to the end coordinates." << endl;
-	cerr 								<< "\t\t- If strand is \"-\", slop is only added to the start coordinates." << endl;
-	cerr 								<< "\t\t- By default, slop is added in both directions." << endl << endl;
-	
 	cerr << "\t-is\t"	    			<< "Ignore strands when searching for overlaps." << endl;
 	cerr 								<< "\t\t- By default, strands are enforced." << endl << endl;
 
@@ -175,4 +149,5 @@ void ShowHelp(void) {
 		
 	// end the program here
 	exit(1);
+
 }
