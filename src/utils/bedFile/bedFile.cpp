@@ -218,8 +218,13 @@ void BedFile::FindOverlapsPerBin(string chrom, CHRPOS start, CHRPOS end,
             vector<BED>::const_iterator bedEnd = bedMap[chrom][j].end();
 
             for (; bedItr != bedEnd; ++bedItr) {
-                // do we have sufficient overlap?
-                if (overlaps(bedItr->start, bedItr->end, start, end) > 0) {
+                // do we have sufficient overlap? -- changed > to >= to allow zero length features
+                if (overlaps(bedItr->start, bedItr->end, start, end)>= 0) {
+
+                    // throw out the case where the end of A is colocated with the start of B
+                    // this is needed to allow zero length features (see the above >= )
+                    if(end==bedItr->start) continue;
+
                     // skip the hit if not on the same strand (and we care)
                     if (forceStrand == false) hits.push_back(*bedItr);
                     else if ( (forceStrand == true) && (strand == bedItr->strand)) {
