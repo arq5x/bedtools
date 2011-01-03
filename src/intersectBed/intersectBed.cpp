@@ -32,6 +32,13 @@ bool BedIntersect::processHits(const BED &a, const vector<BED> &hits, bool print
         overlapBases = (e - s);             // the number of overlapping bases b/w a and b
 
         // is there enough overlap relative to the user's request? (default ~ 1bp)
+
+        // if a feature has zero length (e.g. an insertion) give it a length of 1 and overlap of 1
+        if(aLength==0){
+            aLength++;
+            overlapBases++;
+        }
+
         if ( ( (float) overlapBases / (float) aLength ) >= _overlapFraction ) {
             // Report the hit if the user doesn't care about reciprocal overlap between A and B.
             if (_reciprocal == false) {
