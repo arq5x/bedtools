@@ -36,7 +36,7 @@ const int PRECISION = 21;
 // define our program name
 #define PROGRAM_NAME "groupBy"
 // define our parameter checking macro
-#define PARAMETER_CHECK(param, paramLen, actualLen) (strncmp(argv[i], param, min(actualLen, paramLen))== 0) && (actualLen == paramLen)
+#define PARAMETER_CHECK(param, paramLen, actualLen) ((strncmp(argv[i], param, min(actualLen, paramLen))== 0) && (actualLen == paramLen))
 #define LOOKS_LIKE_A_PARAM(string) (strlen(string)>0 && string[0]=='-')
 
 
