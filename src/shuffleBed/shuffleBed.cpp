@@ -31,7 +31,8 @@ BedShuffle::BedShuffle(string &bedFile, string &genomeFile, string &excludeFile,
         srand(seed);
     }
     else {
-        srand((unsigned)time(0));
+        // thanks to Rob Long for the tip.
+        srand((unsigned)time(0)+(unsigned)getpid());
     }
 
     _bed         = new BedFile(bedFile);
