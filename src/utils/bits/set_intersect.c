@@ -1,5 +1,5 @@
-#include "../lib/bed.h"
-#include "../lib/set_intersect.h"
+#include "bed.h" //DITCH
+#include "set_intersect.h"
 
 //{{{ compare_*
 int compare_interval_pairs_by_start (const void *a, const void *b)
