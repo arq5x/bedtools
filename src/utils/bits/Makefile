@@ -9,7 +9,7 @@ INCLUDES =
 # ----------------------------------
 # define our source and object files
 # ----------------------------------
-SOURCES= set_intersect.c timer.c
+SOURCES= bits.c
 OBJECTS= $(SOURCES:.c=.o)
 BUILT_OBJECTS= $(patsubst %,$(OBJ_DIR)/%,$(OBJECTS))
 
