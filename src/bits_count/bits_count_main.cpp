@@ -10,7 +10,6 @@
   Licenced under the GNU General Public License 2.0 license.
 ******************************************************************************/
 #include "bits_count.h"
-#include "set_intersect.h"
 #include "version.h"
 
 using namespace std;
