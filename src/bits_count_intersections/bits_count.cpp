@@ -99,13 +99,13 @@ void BitsCount::CountOverlaps() {
         }
     }
     
-    struct interval *A_ivls = (struct interval *) malloc(sizeof(struct interval) * A.size());
-    struct interval *B_ivls = (struct interval *) malloc(sizeof(struct interval) * B.size());
-    
-    // UNSAFE. Better solution? Assumes contiguous memory.
-    memcpy(A_ivls, &A[0], sizeof(struct interval) * A.size() );
-    memcpy(B_ivls, &B[0], sizeof(struct interval) * B.size() );
+    // struct interval *A_ivls = (struct interval *) malloc(sizeof(struct interval) * A.size());
+    // struct interval *B_ivls = (struct interval *) malloc(sizeof(struct interval) * B.size());
+    // 
+    // // UNSAFE. Better solution? Assumes contiguous memory.
+    // memcpy(A_ivls, &A[0], sizeof(struct interval) * A.size() );
+    // memcpy(B_ivls, &B[0], sizeof(struct interval) * B.size() );
     										     
-    uint32_t tot_overlaps = count_intersections_bsearch_seq(A_ivls, A.size(), B_ivls, B.size());
+    uint32_t tot_overlaps = count_intersections_bsearch_seq(&A[0], A.size(), &B[0], B.size());
     printf("%u\n", tot_overlaps);
 }
