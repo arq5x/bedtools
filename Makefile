@@ -18,6 +18,7 @@ SUBDIRS = $(SRC_DIR)/annotateBed \
 		  $(SRC_DIR)/bedToBam \
 		  $(SRC_DIR)/bedToIgv \
 		  $(SRC_DIR)/bed12ToBed6 \
+		  $(SRC_DIR)/bits_count_intersections \
 		  $(SRC_DIR)/closestBed \
 		  $(SRC_DIR)/complementBed \
 		  $(SRC_DIR)/coverageBed \
@@ -52,7 +53,11 @@ UTIL_SUBDIRS =	$(SRC_DIR)/utils/lineFileUtilities \
 				$(SRC_DIR)/utils/tabFile \
 				$(SRC_DIR)/utils/BamTools \
 				$(SRC_DIR)/utils/BamTools-Ancillary \
-				$(SRC_DIR)/utils/Fasta
+				$(SRC_DIR)/utils/Fastan \
+				$(SRC_DIR)/utils/bits/utils/c/mt \
+				$(SRC_DIR)/utils/bits/utils/c/timer \
+				$(SRC_DIR)/utils/bits/binary_search/lib \
+				$(SRC_DIR)/utils/bits/interval_intersection/lib
 
 all:
 	[ -d $(OBJ_DIR) ] || mkdir -p $(OBJ_DIR)
