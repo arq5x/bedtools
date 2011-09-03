@@ -630,7 +630,8 @@ void BedFile::loadBedFileIntoVector() {
     BED bedEntry, nullBed;
     int lineNum = 0;
     BedLineStatus bedStatus;
-
+    
+    bedList.reserve(1000000);
     Open();
     while ((bedStatus = this->GetNextBed(bedEntry, lineNum)) != BED_INVALID) {
         if (bedStatus == BED_VALID) {
