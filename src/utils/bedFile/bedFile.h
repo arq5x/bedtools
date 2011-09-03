@@ -419,6 +419,9 @@ public:
 
     // load a BED file into a map keyed by chrom. value is vector of BEDs
     void loadBedFileIntoMapNoBin();
+    
+    // load a BED file into a vector
+    void loadBedFileIntoVector();
 
     // Given a chrom, start, end and strand for a single feature,
     // search for all overlapping features in another BED file.
@@ -462,6 +465,7 @@ public:
     masterBedCovListMap  bedCovListMap;
     masterBedMap         bedMap;
     masterBedMapNoBin    bedMapNoBin;
+    bedVector            bedList;
 
 private:
 

@@ -623,3 +623,20 @@ void BedFile::loadBedFileIntoMapNoBin() {
         sort(m->second.begin(), m->second.end(), sortByStart);
     }
 }
+
+
+void BedFile::loadBedFileIntoVector() {
+
+    BED bedEntry, nullBed;
+    int lineNum = 0;
+    BedLineStatus bedStatus;
+
+    Open();
+    while ((bedStatus = this->GetNextBed(bedEntry, lineNum)) != BED_INVALID) {
+        if (bedStatus == BED_VALID) {
+            bedList.push_back(bedEntry);
+            bedEntry = nullBed;
+        }
+    }
+    Close();
+}

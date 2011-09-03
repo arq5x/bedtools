@@ -62,41 +62,31 @@ void BitsCount::CountOverlaps() {
     // close up
     _genome->Close();
     
-    
-    vector<struct interval> A, B;
 
-    // project A into U
-    _bedA->loadBedFileIntoMapNoBin();
-    _bedB->loadBedFileIntoMapNoBin();
+    // pload A and B into vectors
+    _bedA->loadBedFileIntoVector();
+    _bedB->loadBedFileIntoVector();
+
+    vector<struct interval> A, B;
     
-    masterBedMapNoBin::const_iterator mItr = _bedA->bedMapNoBin.begin();
-    masterBedMapNoBin::const_iterator mEnd = _bedA->bedMapNoBin.end();
-    for (; mItr != mEnd; ++mItr) {
-        string chrom = mItr->first;
-        vector<BED> bedList = mItr->second;
-        for (size_t i = 0; i < bedList.size(); ++i) {
+    // project A into U
+    for (size_t i = 0; i < _bedA->bedList.size(); ++i) {
             struct interval ivl;
-            CHRPOS projected_start = _offsets[chrom] + bedList[i].start;
-            CHRPOS projected_end   = _offsets[chrom] + bedList[i].end;
+            CHRPOS projected_start = _offsets[_bedB->bedList[i].chrom] + _bedA->bedList[i].start;
+            CHRPOS projected_end   = _offsets[_bedB->bedList[i].chrom] + _bedA->bedList[i].end;
             ivl.start = projected_start + 1;
             ivl.end   = projected_end;
             A.push_back(ivl);
-        }
     }
-
-    mItr = _bedB->bedMapNoBin.begin();
-    mEnd = _bedB->bedMapNoBin.end();
-    for (; mItr != mEnd; ++mItr) {
-        string chrom = mItr->first;
-        vector<BED> bedList = mItr->second;
-        for (size_t i = 0; i < bedList.size(); ++i) {
-            struct interval ivl;
-            CHRPOS projected_start = _offsets[chrom] + bedList[i].start;
-            CHRPOS projected_end   = _offsets[chrom] + bedList[i].end;
-            ivl.start = projected_start + 1;
-            ivl.end   = projected_end;
-            B.push_back(ivl);
-        }
+    
+    // project B into U
+    for (size_t i = 0; i < _bedB->bedList.size(); ++i) {
+        struct interval ivl;
+        CHRPOS projected_start = _offsets[_bedB->bedList[i].chrom] + _bedB->bedList[i].start;
+        CHRPOS projected_end   = _offsets[_bedB->bedList[i].chrom] + _bedB->bedList[i].end;
+        ivl.start = projected_start + 1;
+        ivl.end   = projected_end;
+        B.push_back(ivl);
     }
     
     // struct interval *A_ivls = (struct interval *) malloc(sizeof(struct interval) * A.size());
