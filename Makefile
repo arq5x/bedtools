@@ -8,10 +8,10 @@ export OBJ_DIR	= obj
 export BIN_DIR	= bin
 export SRC_DIR	= src
 export CXX		= g++
-export CXXFLAGS = -Wall -O2 -D_FILE_OFFSET_BITS=64 -fPIC
+export CXXFLAGS = -Wall -O2  -fPIC
 export LIBS		= -lz
 export BT_ROOT  = src/utils/BamTools/
-
+export DFLAGS   = -D_FILE_OFFSET_BITS=64 -D_SINGLE_TOOL
 
 SUBDIRS = $(SRC_DIR)/annotateBed \
 		  $(SRC_DIR)/bamToBed \

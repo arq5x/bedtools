@@ -23,7 +23,7 @@ using namespace std;
 // function declarations
 void ShowHelp(void);
 
-int main(int argc, char* argv[]) {
+int coverage_main(int argc, char* argv[]) {
 
     // our configuration variables
     bool showHelp = false;
