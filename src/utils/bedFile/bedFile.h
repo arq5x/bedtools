@@ -95,6 +95,7 @@ struct BED {
     bool   finished;
     // list of hits from another file.
     vector<BED> overlaps;
+    vector<BED> blocks;
 
 public:
     // constructors
@@ -111,7 +112,8 @@ public:
       zeroLength(false),
       added(false),
       finished(false),
-      overlaps()
+      overlaps(),
+      blocks()
     {}
 
     // BED3
@@ -126,7 +128,8 @@ public:
       zeroLength(false),
       added(false),
       finished(false),
-      overlaps()
+      overlaps(),
+      blocks()      
     {}
 
     // BED4
@@ -141,7 +144,8 @@ public:
       zeroLength(false),
       added(false),
       finished(false),
-      overlaps()
+      overlaps(),
+      blocks()
     {}
 
     // BED6
@@ -157,7 +161,8 @@ public:
       zeroLength(false),
       added(false),
       finished(false),
-      overlaps()
+      overlaps(),
+      blocks()
     {}
 
     // BEDALL
@@ -173,7 +178,8 @@ public:
       zeroLength(false),
       added(false),
       finished(false),
-      overlaps()
+      overlaps(),
+      blocks()
     {}
     
     int size() {
