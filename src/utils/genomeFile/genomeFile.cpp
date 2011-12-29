@@ -11,6 +11,7 @@
 ******************************************************************************/
 #include "lineFileUtilities.h"
 #include "genomeFile.h"
+#include <algorithm>
 
 
 GenomeFile::GenomeFile(const string &genomeFile) {
