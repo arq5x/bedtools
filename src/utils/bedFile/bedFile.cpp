@@ -506,7 +506,7 @@ void BedFile::countHits(const BED &a, bool sameStrand, bool diffStrand, bool cou
                         else {
                             // correct for the fact that we artificially expanded the zeroLength feature
                             bedItr->depthMap[a.start+2].starts++;
-                            bedItr->depthMap[a.end-1].ends++;                        
+                            bedItr->depthMap[a.end-1].ends++;
                         }
 
                         if (a.start < bedItr->minOverlapStart) {
