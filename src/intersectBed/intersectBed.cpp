@@ -85,7 +85,7 @@ BedIntersect::BedIntersect(string bedAFile, string bedBFile, bool anyHit,
         _printable = false;
         
     if (_bamInput == false)
-        IntersectBed();
+        IntersectBedMulti();
     else
         IntersectBam(bedAFile);
 }
@@ -218,6 +218,51 @@ void BedIntersect::ReportOverlapSummary(const BED &a, const int &numOverlapsFoun
         _bedA->reportBedNewLine(a);
     }
 }
+
+
+void BedIntersect::IntersectBedMulti() {
+    // create new BED file objects for A and B
+    _bedA = new BedFile(_bedAFile);
+    _bedB = new BedFile(_bedBFile);
+
+    if (_sortedInput == false) {
+        // load the "B" file into a map in order to
+        // compare each entry in A to it in search of overlaps.
+        _bedB->loadBedFileIntoMap();
+
+        
+        //hits.reserve(100);
+        int num_threads = 8;
+        int buffer_size = 10000;
+        omp_set_num_threads(num_threads);
+        vector<BED> bedset(buffer_size);
+        vector< vector<BED> > hitset(buffer_size);
+        BED a;
+
+        // open the "A" file, process each BED entry and searh for overlaps.
+        _bedA->Open();
+        // report A's header first if asked.
+        if (_printHeader == true) {
+            _bedA->PrintHeader();
+        }
+        while (_bedA->GetNextBedSet(bedset, buffer_size, false)) {
+            int i;
+            #pragma omp parallel for schedule(static) private (i) shared(bedset, hitset)
+            for (i = 0; i < bedset.size(); ++i)
+            {
+                FindOverlaps(bedset[i], hitset[i]);
+            }
+            #pragma omp critical
+            for (size_t h = 0; h < hitset.size(); ++h)
+            {
+                hitset[h].clear();
+            }
+            //hits.clear();
+        }
+        _bedA->Close();
+    }
+}
+
 
 
 void BedIntersect::IntersectBed() {

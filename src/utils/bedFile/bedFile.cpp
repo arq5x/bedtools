@@ -223,6 +223,24 @@ bool BedFile::GetNextBed(BED &bed, bool forceSorted) {
 }
 
 
+bool BedFile::GetNextBedSet(vector<BED> &beds, int N, bool forceSorted) {
+    //beds.clear();
+    if (_bedStream->good()) {
+        BED bed;
+        int bed_count = 0;
+        while (GetNextBed(bed, forceSorted)) {
+            if (_status == BED_VALID) {
+                //beds.push_back(bed);
+                beds[bed_count] = bed;
+                if (++bed_count == N) break;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+
 bool BedFile::GetNextMergedBed(BED &merged_bed) {
 
     if (_bedStream->good()) {

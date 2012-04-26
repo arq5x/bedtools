@@ -406,6 +406,9 @@ public:
     // Get the next BED entry in an opened BED file.
     bool GetNextBed (BED &bed, bool forceSorted = false);
     
+    // Get the next N BED entries from the BED file
+    bool GetNextBedSet(vector<BED> &beds, int N, bool forceSorted);
+    
     // Returns the next MERGED (i.e., non-overlapping) interval in an opened BED file
     // NOTE: assumes input file is sorted by chrom then start
     bool GetNextMergedBed(BED &merged_bed);

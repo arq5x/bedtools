@@ -26,6 +26,7 @@ using namespace BamTools;
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
+#include <omp.h>
 using namespace std;
 
 
@@ -83,7 +84,8 @@ private:
     void IntersectBed(istream &bedInput);
 
     void IntersectBed();
-
+    void IntersectBedMulti();
+    
     void IntersectBam(string bamFile);
 
     bool processHits(const BED &a, const vector<BED> &hits);

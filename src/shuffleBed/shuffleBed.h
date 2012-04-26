@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <algorithm>  // for binary search
+#include <omp.h>
 using namespace std;
 
 const int MAX_TRIES = 1000000;
@@ -71,6 +72,7 @@ private:
 
     // methods
     void Shuffle();
+    void ShuffleMultiThread();
     void ShuffleWithExclusions();
     void ShuffleWithInclusions();
 

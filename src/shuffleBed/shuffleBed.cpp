@@ -12,7 +12,6 @@
 #include "lineFileUtilities.h"
 #include "shuffleBed.h"
 
-
 BedShuffle::BedShuffle(string &bedFile, string &genomeFile, string &excludeFile, string &includeFile, 
                        bool haveSeed, bool haveExclude, bool haveInclude, bool sameChrom, 
                        float overlapFraction, int seed, bool chooseChrom) {
@@ -71,7 +70,8 @@ BedShuffle::BedShuffle(string &bedFile, string &genomeFile, string &excludeFile,
     else if  (_haveExclude == false && _haveInclude == true)
         ShuffleWithInclusions();
     else
-        Shuffle();
+        //Shuffle();
+        ShuffleMultiThread();
 }
 
 
@@ -87,6 +87,29 @@ void BedShuffle::Shuffle() {
         if (_bed->_status == BED_VALID) {
             ChooseLocus(bedEntry);
             _bed->reportBedNewLine(bedEntry);
+        }
+    }
+    _bed->Close();
+}
+
+
+void BedShuffle::ShuffleMultiThread() {
+
+    int num_threads = 8;
+    int buffer_size = 10000;
+    omp_set_num_threads(num_threads);
+    vector<BED> bedset(buffer_size);
+    
+    _bed->Open();
+    while (_bed->GetNextBedSet(bedset, buffer_size, false)) {
+        // use bedset.size() instead of num_threads b/c the last batch
+        // in the file may have less than num_threads records.
+        int i;
+        #pragma omp parallel for schedule(static) private (i) shared(bedset)
+        for (i = 0; i < bedset.size(); ++i)
+        {
+            ChooseLocus(bedset[i]);
+            _bed->reportBedNewLine(bedset[i]);
         }
     }
     _bed->Close();
