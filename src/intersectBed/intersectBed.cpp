@@ -86,6 +86,7 @@ BedIntersect::BedIntersect(string bedAFile, string bedBFile, bool anyHit,
         
     if (_bamInput == false)
         IntersectBedMulti();
+        //IntersectBed();
     else
         IntersectBam(bedAFile);
 }

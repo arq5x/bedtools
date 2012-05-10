@@ -303,7 +303,7 @@ void BedFile::allHits(string chrom, CHRPOS start, CHRPOS end, string strand,
             hits if it meets all of the user's requests, which include:
                (a) overlap fractio, (b) strandedness, (c) reciprocal overlap
     */
-    for (BINLEVEL i = 0; i < _binLevels; ++i) {
+    for (BINLEVEL i = 0; i < _binLevels; ++i) {          
         BIN offset = _binOffsetsExtended[i];
         for (BIN j = (startBin+offset); j <= (endBin+offset); ++j)  {
             // move to the next bin if this one is empty
@@ -595,7 +595,6 @@ void BedFile::setBed12 (bool isBed12) { this->isBed12 = isBed12; }
 void BedFile::loadBedFileIntoMap() {
 
     BED bedEntry;
-    
     Open();
     while (GetNextBed(bedEntry)) {
         if (_status == BED_VALID) {
