@@ -285,13 +285,15 @@ void BedFile::allHits(string chrom, CHRPOS start, CHRPOS end, string strand,
             hits if it meets all of the user's requests, which include:
                (a) overlap fractio, (b) strandedness, (c) reciprocal overlap
     */
+    binsToBeds *chromBins = &bedMap[chrom];
     for (BINLEVEL i = 0; i < _binLevels; ++i) {
         BIN offset = _binOffsetsExtended[i];
         for (BIN j = (startBin+offset); j <= (endBin+offset); ++j)  {
             // move to the next bin if this one is empty
-            if (bedMap[chrom][j].empty()) continue;
-            vector<BED>::const_iterator bedItr = bedMap[chrom][j].begin();
-            vector<BED>::const_iterator bedEnd = bedMap[chrom][j].end();
+            if ((*chromBins)[j].empty()) continue;
+            
+            vector<BED>::const_iterator bedItr = (*chromBins)[j].begin();
+            vector<BED>::const_iterator bedEnd = (*chromBins)[j].end();
             for (; bedItr != bedEnd; ++bedItr) {
                 CHRPOS s = max(start, bedItr->start);
                 CHRPOS e = min(end, bedItr->end);
@@ -340,13 +342,14 @@ bool BedFile::anyHits(string chrom, CHRPOS start, CHRPOS end, string strand,
        (a) overlap fractio, (b) strandedness, (c) reciprocal overlap.
        Otherwise, return false.
     */
+    binsToBeds *chromBins = &bedMap[chrom];
     for (BINLEVEL i = 0; i < _binLevels; ++i) {
         BIN offset = _binOffsetsExtended[i];
         for (BIN j = (startBin+offset); j <= (endBin+offset); ++j)  {
             // move to the next bin if this one is empty
-            if (bedMap[chrom][j].empty()) continue;
-            vector<BED>::const_iterator bedItr = bedMap[chrom][j].begin();
-            vector<BED>::const_iterator bedEnd = bedMap[chrom][j].end();
+            if ((*chromBins)[j].empty()) continue;
+            vector<BED>::const_iterator bedItr = (*chromBins)[j].begin();
+            vector<BED>::const_iterator bedEnd = (*chromBins)[j].end();
             for (; bedItr != bedEnd; ++bedItr) {
                 CHRPOS s = max(start, bedItr->start);
                 CHRPOS e = min(end, bedItr->end);
