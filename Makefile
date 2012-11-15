@@ -25,7 +25,8 @@ export LIBS		= -lz
 export BT_ROOT  = src/utils/BamTools/
 
 
-SUBDIRS = $(SRC_DIR)/annotateBed \
+SUBDIRS = $(SRC_DIR)/absdist \
+		  $(SRC_DIR)/annotateBed \
 		  $(SRC_DIR)/bamToBed \
 		  $(SRC_DIR)/bamToFastq \
 		  $(SRC_DIR)/bedToBam \
