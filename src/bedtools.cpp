@@ -34,6 +34,7 @@ using namespace std;
 // define our parameter checking macro
 #define PARAMETER_CHECK(param, paramLen, actualLen) (strncmp(argv[i], param, min(actualLen, paramLen))== 0) && (actualLen == paramLen)
 
+int absdist_main(int argc, char* argv[]); //
 int annotate_main(int argc, char* argv[]);//
 int bamtobed_main(int argc, char* argv[]);//
 int bamtofastq_main(int argc, char* argv[]);//
@@ -128,6 +129,7 @@ int main(int argc, char *argv[])
     // statistics tools
     else if (sub_cmd == "jaccard")     return jaccard_main(argc-1, argv+1);
     else if (sub_cmd == "reldist")     return reldist_main(argc-1, argv+1);
+    else if (sub_cmd == "absdist")     return absdist_main(argc-1, argv+1);
 
     // misc. tools
     else if (sub_cmd == "overlap")     return getoverlap_main(argc-1, argv+1);
@@ -235,6 +237,7 @@ int bedtools_help(void)
     cout  << "[ Statistical relationships ]" << endl;
     cout  << "    jaccard       "  << "Calculate the Jaccard statistic b/w two sets of intervals.\n";
     cout  << "    reldist       "  << "Calculate the distribution of relative distances b/w two files.\n";
+    cout  << "    absdist       "  << "Calculate the distribution of absolute distances b/w two files.\n";
 
     cout  << endl;
     cout  << "[ Miscellaneous tools ]" << endl;
