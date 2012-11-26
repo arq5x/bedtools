@@ -33,7 +33,8 @@ public:
 
   // constructor
   BedMerge(string &bedFile, bool numEntries, 
-           int maxDistance, bool forceStrand, 
+           int maxDistance, bool forceStrand,
+           float overlapFraction, bool reciprocal, 
            bool reportNames, bool reportScores, const string &scoreOp);
 
   // destructor
@@ -47,6 +48,8 @@ private:
     string _bedFile;
     bool   _numEntries;
     bool   _forceStrand;
+    float  _overlapFraction;
+    bool   _reciprocal;
     bool   _reportNames;
     bool   _reportScores;
     string _scoreOp;

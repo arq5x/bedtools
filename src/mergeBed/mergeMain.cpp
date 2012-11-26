@@ -39,6 +39,8 @@ int merge_main(int argc, char* argv[]) {
     bool numEntries      = false;
     bool haveMaxDistance = false;
     bool forceStrand     = false;
+    float overlapFraction = 1E-9;
+    bool reciprocalFraction = false;
     bool reportNames     = false;
     bool reportScores    = false;
 
@@ -77,6 +79,15 @@ int merge_main(int argc, char* argv[]) {
         else if (PARAMETER_CHECK("-s", 2, parameterLength)) {
             forceStrand = true;
         }
+        else if(PARAMETER_CHECK("-f", 2, parameterLength)) {
+            if ((i+1) < argc) {
+                overlapFraction = atof(argv[i + 1]);
+                i++;
+            }
+        }
+        else if(PARAMETER_CHECK("-r", 2, parameterLength)) {
+            reciprocalFraction = true;
+        }
         else if (PARAMETER_CHECK("-nms", 4, parameterLength)) {
             reportNames = true;
         }
@@ -106,7 +117,11 @@ int merge_main(int argc, char* argv[]) {
     }
 
     if (!showHelp) {
-        BedMerge *bm = new BedMerge(bedFile, numEntries, maxDistance, forceStrand, reportNames, reportScores, scoreOp);
+        BedMerge *bm = new BedMerge(bedFile, numEntries, 
+                                    maxDistance, forceStrand, 
+                                    overlapFraction, reciprocalFraction, 
+                                    reportNames, reportScores, 
+                                    scoreOp);
         delete bm;
     }
     else {
@@ -127,6 +142,16 @@ void merge_help(void) {
     cerr << "\t-s\t"                     << "Force strandedness.  That is, only merge features" << endl;
     cerr                                 << "\t\tthat are the same strand." << endl;
     cerr                                 << "\t\t- By default, merging is done without respect to strand." << endl << endl;
+    
+    cerr << "\t-f\t"            << "Minimum overlap required as a fraction of the current cluster size, " << endl;
+    cerr                        << "\t\tnot the lengths of the underlying intervals." << endl;
+    cerr                        << "\t\t- Default is to require 1bp of overlap." << endl;
+    cerr                        << "\t\t- FLOAT (e.g. 0.50)" << endl << endl;
+
+    cerr << "\t-r\t"            << "Require that the fraction overlap (-f) be reciprocal for the new interval " << endl;
+    cerr                        << "\t\tto be merged and the current cluster." << endl;
+    cerr                        << "\t\t- In other words, if -f is 0.90 and -r is used, this requires" << endl;
+    cerr                        << "\t\t  that B overlap 90% of A and A _also_ overlaps 90% of B." << endl << endl;
 
     cerr << "\t-n\t"                     << "Report the number of BED entries that were merged." << endl;
     cerr                                 << "\t\t- Note: \"1\" is reported if no merging occurred." << endl << endl;
