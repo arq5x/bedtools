@@ -77,12 +77,16 @@ BedMerge::BedMerge(string &bedFile,
                    bool numEntries, 
                    int  maxDistance, 
                    bool forceStrand, 
+                   float overlapFraction, 
+                   bool reciprocal, 
                    bool reportNames, 
                    bool reportScores,
                    const string &scoreOp) :
     _bedFile(bedFile),
     _numEntries(numEntries),
     _forceStrand(forceStrand),
+    _overlapFraction(overlapFraction),
+    _reciprocal(reciprocal),
     _reportNames(reportNames),
     _reportScores(reportScores),
     _scoreOp(scoreOp),
@@ -247,7 +251,7 @@ void BedMerge::MergeBed() {
     _bed->Open();
     while (_bed->GetNextBed(curr, true)) { // true = force sorted intervals
         if (_bed->_status != BED_VALID)
-            continue;            
+            continue;
         // new block, no overlap
         if ( (((int) curr.start - end) > _maxDistance) || 
             (curr.chrom != prev.chrom)) 
