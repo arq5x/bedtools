@@ -13,7 +13,7 @@ Licenced under the GNU General Public License 2.0 license.
 #include "genomeCoverageBed.h"
 
 
-BedGenomeCoverage::BedGenomeCoverage(string bedFile, string genomeFile,
+BedGenomeCoverage::BedGenomeCoverage(vector<string> bedFiles, string genomeFile,
                                      bool eachBase, bool startSites, 
                                      bool bedGraph, bool bedGraphAll,
                                      int max, float scale,
@@ -23,7 +23,7 @@ BedGenomeCoverage::BedGenomeCoverage(string bedFile, string genomeFile,
                                      bool eachBaseZeroBased,
                                      bool add_gb_track_line, string gb_track_line_opts) {
 
-    _bedFile = bedFile;
+    _bedFiles = bedFiles;
     _genomeFile = genomeFile;
     _eachBase = eachBase;
     _eachBaseZeroBased = eachBaseZeroBased;
@@ -42,6 +42,8 @@ BedGenomeCoverage::BedGenomeCoverage(string bedFile, string genomeFile,
     _gb_track_line_opts = gb_track_line_opts;
     _currChromName = "";
     _currChromSize = 0 ;
+    _currBedFile = -1 ;
+    _lastBedFile = -1 ;
 
     
     if (_bamInput == false) {
@@ -51,11 +53,28 @@ BedGenomeCoverage::BedGenomeCoverage(string bedFile, string genomeFile,
     PrintTrackDefinitionLine();
 
     if (_bamInput == false) {
-        _bed = new BedFile(bedFile);
-        CoverageBed();
+        while (!_bedFiles.empty()){
+            _currBedFile ++;
+            string bedFile = _bedFiles.front();
+            _bed = new BedFile(bedFile);
+            CoverageBed();
+            // process the results of the last chromosome.
+            _bedFiles.erase(_bedFiles.begin());
+            _lastBedFile = _currBedFile;
+        }
+        PrintFinalCoverage();
     }
     else {
-        CoverageBam(_bedFile);
+        while (!_bedFiles.empty()){
+            _currBedFile ++;
+            string bedFile = _bedFiles.front();
+            CoverageBam(bedFile);
+        ReportChromCoverage(_currChromCoverage, _currChromSize,
+                _currChromName, _currChromDepthHist);
+            _bedFiles.erase(_bedFiles.begin());
+            _lastBedFile = _currBedFile;
+        }
+        PrintFinalCoverage();
     }
 }
 
@@ -98,7 +117,7 @@ void BedGenomeCoverage::StartNewChrom(const string& newChrom) {
     // empty the previous chromosome and reserve new
     std::vector<DEPTH>().swap(_currChromCoverage);
 
-    if (_visitedChromosomes.find(newChrom) != _visitedChromosomes.end()) {
+    if (_visitedChromosomes.find(newChrom) != _visitedChromosomes.end() && _currChromName != "") {
         cerr << "Input error: Chromosome " << _currChromName
              << " found in non-sequential lines. This suggests that the input file is not sorted correctly." << endl;
 
@@ -188,7 +207,6 @@ void BedGenomeCoverage::CoverageBed() {
         }
     }
     _bed->Close();
-    PrintFinalCoverage();
 }
 
 
@@ -196,9 +214,6 @@ void BedGenomeCoverage::PrintFinalCoverage()
 {
 
 
-    // process the results of the last chromosome.
-    ReportChromCoverage(_currChromCoverage, _currChromSize,
-            _currChromName, _currChromDepthHist);
     if (_eachBase == false && _bedGraph == false && _bedGraphAll == false) {
         ReportGenomeCoverage(_currChromDepthHist);
     }
@@ -269,12 +284,12 @@ void BedGenomeCoverage::CoverageBam(string bamFile) {
     }
     // close the BAM
     reader.Close();
-    PrintFinalCoverage();
 }
 
 
 void BedGenomeCoverage::ReportChromCoverage(const vector<DEPTH> &chromCov, const int &chromSize, const string &chrom, chromHistMap &chromDepthHist) {
 
+    chromHistMap tmpchromDepthHist;
     if (_eachBase) {
         int depth = 0; // initialize the depth
         int offset = (_eachBaseZeroBased)?0:1;
@@ -303,15 +318,17 @@ void BedGenomeCoverage::ReportChromCoverage(const vector<DEPTH> &chromCov, const
             // maximum bin requested, then readjust the depth to be the max
             if (depth >= _max) {
                 chromDepthHist[chrom][_max]++;
+                tmpchromDepthHist[chrom][_max]++;
             }
             else {
                 chromDepthHist[chrom][depth]++;
+                tmpchromDepthHist[chrom][depth]++;
             }
             depth = depth - chromCov[pos].ends;
         }
         // report the histogram for each chromosome
-        histMap::const_iterator depthIt = chromDepthHist[chrom].begin();
-        histMap::const_iterator depthEnd = chromDepthHist[chrom].end();
+        histMap::const_iterator depthIt = tmpchromDepthHist[chrom].begin();
+        histMap::const_iterator depthEnd = tmpchromDepthHist[chrom].end();
         for (; depthIt != depthEnd; ++depthIt) {
             int depth = depthIt->first;
             unsigned int numBasesAtDepth = depthIt->second;

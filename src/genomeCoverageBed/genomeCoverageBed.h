@@ -41,7 +41,7 @@ class BedGenomeCoverage {
 public:
 
     // constructor
-    BedGenomeCoverage(string bedFile, string genomeFile, 
+    BedGenomeCoverage(vector<string> bedFiles, string genomeFile, 
                       bool eachBase, bool startSites,
                       bool bedGraph, bool bedGraphAll, 
                       int max, float scale, 
@@ -57,7 +57,7 @@ public:
 private:
 
     // data (parms)
-    string _bedFile;
+    vector<string> _bedFiles;
     string _genomeFile;
     bool _bamInput;
     bool _eachBase;
@@ -84,6 +84,8 @@ private:
     vector<DEPTH> _currChromCoverage;
     chromHistMap _currChromDepthHist;
     int _currChromSize ;
+    int _currBedFile ;
+    int _lastBedFile ;
     set<string> _visitedChromosomes;
 
 
