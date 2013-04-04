@@ -59,6 +59,8 @@ BedGenomeCoverage::BedGenomeCoverage(vector<string> bedFiles, string genomeFile,
             _bed = new BedFile(bedFile);
             CoverageBed();
             // process the results of the last chromosome.
+            ReportChromCoverage(_currChromCoverage, _currChromSize,
+                _currChromName, _currChromDepthHist);
             _bedFiles.erase(_bedFiles.begin());
             _lastBedFile = _currBedFile;
         }
@@ -69,7 +71,7 @@ BedGenomeCoverage::BedGenomeCoverage(vector<string> bedFiles, string genomeFile,
             _currBedFile ++;
             string bedFile = _bedFiles.front();
             CoverageBam(bedFile);
-        ReportChromCoverage(_currChromCoverage, _currChromSize,
+            ReportChromCoverage(_currChromCoverage, _currChromSize,
                 _currChromName, _currChromDepthHist);
             _bedFiles.erase(_bedFiles.begin());
             _lastBedFile = _currBedFile;
@@ -289,7 +291,7 @@ void BedGenomeCoverage::CoverageBam(string bamFile) {
 
 void BedGenomeCoverage::ReportChromCoverage(const vector<DEPTH> &chromCov, const int &chromSize, const string &chrom, chromHistMap &chromDepthHist) {
 
-    chromHistMap tmpchromDepthHist;
+    chromHistMap tmpchromDepthHist; // use tmpchromDepthHist so not accumulate when report everyfile. 
     if (_eachBase) {
         int depth = 0; // initialize the depth
         int offset = (_eachBaseZeroBased)?0:1;
