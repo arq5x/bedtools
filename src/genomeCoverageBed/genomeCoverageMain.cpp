@@ -30,7 +30,9 @@ int genomecoverage_main(int argc, char* argv[]) {
     bool showHelp = false;
 
     // input files
+    vector<string> bedFiles;
     string bedFile;
+    string bedFilelist;
     string genomeFile;
     int max = INT_MAX;
     float scale = 1.0;
@@ -75,6 +77,7 @@ int genomecoverage_main(int argc, char* argv[]) {
             if ((i+1) < argc) {
                 haveBed = true;
                 bedFile = argv[i + 1];
+                bedFiles.push_back(bedFile);
                 i++;
             }
         }
@@ -83,6 +86,38 @@ int genomecoverage_main(int argc, char* argv[]) {
                 haveBed = true;
                 bamInput = true;
                 bedFile = argv[i + 1];
+                bedFiles.push_back(bedFile);
+                i++;
+            }
+        }
+        else if(PARAMETER_CHECK("-is", 3, parameterLength)) {
+            if ((i+1) < argc) {
+                haveBed = true;
+                bedFilelist = argv[i + 1];
+                ifstream listFile;
+                listFile.open(bedFilelist.c_str());
+                string line;
+                if (listFile.is_open()) {
+                    while (getline(listFile, line)) {
+                        bedFiles.push_back(line);
+                    }
+                }
+                i++;
+            }
+        }
+        else if(PARAMETER_CHECK("-ibams", 6, parameterLength)) {
+            if ((i+1) < argc) {
+                haveBed = true;
+                bamInput = true;
+                bedFilelist = argv[i + 1];
+                ifstream listFile;
+                listFile.open(bedFilelist.c_str());
+                string line;
+                if (listFile.is_open()) {
+                    while (getline(listFile, line)) {
+                        bedFiles.push_back(line);
+                    }
+                }
                 i++;
             }
         }
@@ -197,7 +232,7 @@ int genomecoverage_main(int argc, char* argv[]) {
     }
     
     if (!showHelp) {
-        BedGenomeCoverage *bc = new BedGenomeCoverage(bedFile, genomeFile, eachBase,
+        BedGenomeCoverage *bc = new BedGenomeCoverage(bedFiles, genomeFile, eachBase,
                                                       startSites, bedGraph, bedGraphAll,
                                                       max, scale, bamInput, obeySplits,
                                                       filterByStrand, requestedStrand,
@@ -222,7 +257,9 @@ void genomecoverage_help(void) {
 
     cerr << "Options: " << endl;
 
+    cerr << "\t-is\t\t" << "The input list file each line is <bed/gff/vcf>. Report each file chrom by chrom and final all together." << endl;
     cerr << "\t-ibam\t\t" << "The input file is in BAM format." << endl;
+    cerr << "\t-ibams\t\t" << "The input list file each line is filename in BAM format. Report each file chrom by chrom and final all together." << endl;
     cerr << "\t\t\tNote: BAM _must_ be sorted by position" << endl << endl;
 
     cerr << "\t-d\t\t" << "Report the depth at each genome position (with one-based coordinates)." << endl;
