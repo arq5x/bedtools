@@ -82,16 +82,18 @@ private:
     chromDepthMap _chromCov;
     string _currChromName ;
     vector<DEPTH> _currChromCoverage;
+    vector<DEPTH> _allChromCoverage;
     chromHistMap _currChromDepthHist;
     int _currChromSize ;
-    int _currBedFile ;
+    unsigned int _currBedFile ;
     int _lastBedFile ;
     set<string> _visitedChromosomes;
+    set<string> _tovisitChromosomes;
 
 
     // methods
     void CoverageBed();
-    void CoverageBam(string bamFile);
+    void CoverageBam(vector<string> &_bamFiles);
     void LoadBamHeaderIntoGenomeFile(const string &bamFile);
     void ReportChromCoverage(const vector<DEPTH> &, const int &chromSize, const string &chrom, chromHistMap&);
     void ReportGenomeCoverage(chromHistMap &chromDepthHist);

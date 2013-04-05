@@ -90,21 +90,6 @@ int genomecoverage_main(int argc, char* argv[]) {
                 i++;
             }
         }
-        else if(PARAMETER_CHECK("-is", 3, parameterLength)) {
-            if ((i+1) < argc) {
-                haveBed = true;
-                bedFilelist = argv[i + 1];
-                ifstream listFile;
-                listFile.open(bedFilelist.c_str());
-                string line;
-                if (listFile.is_open()) {
-                    while (getline(listFile, line)) {
-                        bedFiles.push_back(line);
-                    }
-                }
-                i++;
-            }
-        }
         else if(PARAMETER_CHECK("-ibams", 6, parameterLength)) {
             if ((i+1) < argc) {
                 haveBed = true;

@@ -42,41 +42,23 @@ BedGenomeCoverage::BedGenomeCoverage(vector<string> bedFiles, string genomeFile,
     _gb_track_line_opts = gb_track_line_opts;
     _currChromName = "";
     _currChromSize = 0 ;
-    _currBedFile = -1 ;
+    _currBedFile = 0 ;
     _lastBedFile = -1 ;
 
-    
+
     if (_bamInput == false) {
         _genome = new GenomeFile(genomeFile);
     }
-    
+
     PrintTrackDefinitionLine();
 
     if (_bamInput == false) {
-        while (!_bedFiles.empty()){
-            _currBedFile ++;
-            string bedFile = _bedFiles.front();
-            _bed = new BedFile(bedFile);
-            CoverageBed();
-            // process the results of the last chromosome.
-            ReportChromCoverage(_currChromCoverage, _currChromSize,
-                _currChromName, _currChromDepthHist);
-            _bedFiles.erase(_bedFiles.begin());
-            _lastBedFile = _currBedFile;
-        }
-        PrintFinalCoverage();
+        string bedFile = _bedFiles.front();
+        _bed = new BedFile(bedFile);
+        CoverageBed();
     }
     else {
-        while (!_bedFiles.empty()){
-            _currBedFile ++;
-            string bedFile = _bedFiles.front();
-            CoverageBam(bedFile);
-            ReportChromCoverage(_currChromCoverage, _currChromSize,
-                _currChromName, _currChromDepthHist);
-            _bedFiles.erase(_bedFiles.begin());
-            _lastBedFile = _currBedFile;
-        }
-        PrintFinalCoverage();
+        CoverageBam(_bedFiles);
     }
 }
 
@@ -164,6 +146,7 @@ void BedGenomeCoverage::AddBlockedCoverage(const vector<BED> &bedBlocks) {
 }
 
 
+
 void BedGenomeCoverage::CoverageBed() {
 
     BED a;
@@ -209,12 +192,16 @@ void BedGenomeCoverage::CoverageBed() {
         }
     }
     _bed->Close();
+    PrintFinalCoverage();
 }
 
 
 void BedGenomeCoverage::PrintFinalCoverage()
 {
-
+    if (_currChromName.length() > 0) {
+        ReportChromCoverage(_currChromCoverage, _currChromSize,
+                _currChromName, _currChromDepthHist);
+    }
 
     if (_eachBase == false && _bedGraph == false && _bedGraphAll == false) {
         ReportGenomeCoverage(_currChromDepthHist);
@@ -222,70 +209,137 @@ void BedGenomeCoverage::PrintFinalCoverage()
 }
 
 
-void BedGenomeCoverage::CoverageBam(string bamFile) {
+void BedGenomeCoverage::CoverageBam(vector<string> &_bedFiles) {
 
     ResetChromCoverage();
 
-    // open the BAM file
-    BamReader reader;
-    if (!reader.Open(bamFile)) {
-        cerr << "Failed to open BAM file " << bamFile << endl;
-        exit(1);
+    std::vector<string>::iterator bedFileIt = _bedFiles.begin();
+    std::vector<string>::iterator bedFileFend = _bedFiles.end();
+//    int nfile = _bedFiles.size();
+//    vector<int64_t> bedpos(nfile); // no seek tell in BamReader, later. need add function in Bamtools api and store readed position for speed up
+
+    for(bedFileIt = _bedFiles.begin(); bedFileIt != bedFileFend; bedFileIt++){
+        string bamFile = *bedFileIt;
+
+        // open the BAM file
+        BamReader reader;
+        if (!reader.Open(bamFile)) {
+            cerr << "Failed to open BAM file " << bamFile << endl;
+            exit(1);
+        }
+
+        // get header & reference information
+        string header = reader.GetHeaderText();
+        RefVector refs = reader.GetReferenceData();
+
+        for(unsigned int ichrom=0;ichrom < refs.size(); ichrom++){
+            _tovisitChromosomes.insert(refs.at(ichrom).RefName);
+        }
+        reader.Close();
     }
 
-    // get header & reference information
-    string header = reader.GetHeaderText();
-    RefVector refs = reader.GetReferenceData();
+    // iterative through chroms(refernce)
+    set<string>::iterator iterChrom;
+    for(iterChrom = _tovisitChromosomes.begin(); iterChrom != _tovisitChromosomes.end(); iterChrom++){
+        string _chromtoread = *iterChrom;
 
-    // load the BAM header references into a BEDTools "genome file"
-    _genome = new GenomeFile(refs);
-    // convert each aligned BAM entry to BED
-    // and compute coverage on B
-    BamAlignment bam;
-    while (reader.GetNextAlignment(bam)) {
-        // skip if the read is unaligned
-        if (bam.IsMapped() == false)
-            continue;
+        for(bedFileIt = _bedFiles.begin(); bedFileIt != bedFileFend; bedFileIt++){
+            _currBedFile ++;
+            string bamFile = *bedFileIt;
 
-        // skip if we care about strands and the strand isn't what
-        // the user wanted
-        if ( (_filterByStrand == true) &&
-             ((_requestedStrand == "-") != bam.IsReverseStrand()) )
-            continue;
-
-        // extract the chrom, start and end from the BAM alignment
-        string chrom(refs.at(bam.RefID).RefName);
-        CHRPOS start = bam.Position;
-        CHRPOS end = bam.GetEndPosition(false, false) - 1;
-        
-        // are we on a new chromosome?
-        if ( chrom != _currChromName )
-            StartNewChrom(chrom);
-
-        // add coverage accordingly.
-        if (!_only_5p_end && !_only_3p_end) {
-            bedVector bedBlocks;
-            // we always want to split blocks when a D CIGAR op is found.
-            // if the user invokes -split, we want to also split on N ops.
-            if (_obeySplits) { // "D" true, "N" true
-                GetBamBlocks(bam, refs.at(bam.RefID).RefName, bedBlocks, true, true);
+            // open the BAM file
+            BamReader reader;
+            if (!reader.Open(bamFile)) {
+                cerr << "Failed to open BAM file " << bamFile << endl;
+                exit(1);
             }
-            else { // "D" true, "N" false
-                GetBamBlocks(bam, refs.at(bam.RefID).RefName, bedBlocks, true, false);
+
+            // get header & reference information
+            string header = reader.GetHeaderText();
+            RefVector refs = reader.GetReferenceData();
+
+            // load the BAM header references into a BEDTools "genome file"
+            _genome = new GenomeFile(refs);
+
+            // skip if no chrom(reference) find in bam file
+            bool nochrominfile=0;
+            for(unsigned int irefid=0;irefid < refs.size(); irefid++){
+                string tmpchrom(refs.at(irefid).RefName);
+                if(_chromtoread == tmpchrom){
+                    nochrominfile=1;
+                }
             }
-            AddBlockedCoverage(bedBlocks);
-        }
-        else if (_only_5p_end) {
-            int pos = ( !bam.IsReverseStrand() ) ? start : end;
-            AddCoverage(pos,pos);
-        }
-        else if (_only_3p_end) {
-            int pos = ( bam.IsReverseStrand() ) ? start : end;
-            AddCoverage(pos,pos);
+            if(!nochrominfile){
+                if(reader.IsOpen()){
+                    reader.Close();
+                }
+                continue;
+            }
+
+            // are we on a new chromosome? will reset Coverage
+            if ( _chromtoread.c_str() != _currChromName)
+            StartNewChrom(_chromtoread.c_str());
+
+            // convert each aligned BAM entry to BED
+            // and compute coverage on B
+            BamAlignment bam;
+            bool readedblock = 0;
+            while (reader.GetNextAlignment(bam)) {
+                // skip if the read is unaligned
+                if (bam.IsMapped() == false)
+                    continue;
+
+                // skip if we care about strands and the strand isn't what
+                // the user wanted
+                if ( (_filterByStrand == true) &&
+                     ((_requestedStrand == "-") != bam.IsReverseStrand()) )
+                    continue;
+
+                // extract the chrom, start and end from the BAM alignment
+                string chrom(refs.at(bam.RefID).RefName);
+
+                // skip rest of file if new chrom read over
+                if(chrom != _chromtoread && readedblock){
+                    reader.Close();
+                    break;
+                }
+                CHRPOS start = bam.Position;
+                CHRPOS end = bam.GetEndPosition(false, false) - 1;
+
+                // add coverage accordingly.
+                if (!_only_5p_end && !_only_3p_end) {
+                    bedVector bedBlocks;
+                    // we always want to split blocks when a D CIGAR op is found.
+                    // if the user invokes -split, we want to also split on N ops.
+                    if (_obeySplits) { // "D" true, "N" true
+                        GetBamBlocks(bam, refs.at(bam.RefID).RefName, bedBlocks, true, true);
+                    }
+                    else { // "D" true, "N" false
+                        GetBamBlocks(bam, refs.at(bam.RefID).RefName, bedBlocks, true, false);
+                    }
+                    AddBlockedCoverage(bedBlocks);
+                }
+                else if (_only_5p_end) {
+                    int pos = ( !bam.IsReverseStrand() ) ? start : end;
+                    AddCoverage(pos,pos);
+                }
+                else if (_only_3p_end) {
+                    int pos = ( bam.IsReverseStrand() ) ? start : end;
+                    AddCoverage(pos,pos);
+                }
+                // flag at least readed one for this chrom
+                if (!readedblock) {
+                    readedblock = 1;
+                }
+            }
+
+            if(reader.IsOpen()){
+                // close the BAM
+                reader.Close();
+            }
         }
     }
-    // close the BAM
-    reader.Close();
+    PrintFinalCoverage();
 }
 
 

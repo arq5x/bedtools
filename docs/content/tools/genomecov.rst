@@ -42,7 +42,6 @@ Usage and option summary
 ===========================      ===============================================================================================================================================================================================================
  Option                           Description
 ===========================      ===============================================================================================================================================================================================================
-**-is**                          | The input list file each line is a <bed/gff/vcf>,  Report each file chrom by chrom and final all together.
 **-ibam**                        | BAM file as input for coverage. Each BAM alignment in A added to the total coverage for the genome. 
                                  | Use "stdin" or simply "-" if passing it with a UNIX pipe: For example:
                                  | ``samtools view -b <BAM> | genomeCoverageBed -ibam stdin -g hg18.genome``

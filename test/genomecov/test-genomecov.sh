@@ -144,4 +144,4 @@ check obs exp
 rm obs exp
 
 
-rm *.bam
+#rm *.bam
