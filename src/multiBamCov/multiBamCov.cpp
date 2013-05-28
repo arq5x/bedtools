@@ -189,7 +189,12 @@ void MultiCovBam::CollectCoverage()
                                 }
                             }
                             else if (_extendOneRead) {
-                            	int al_end = al.InsertSize + al.Position;
+                            	int al_start = al.Position;
+                            	int al_end = al.InsertSize + al_start;
+                            	if (al.IsReverseStrand()) {
+                            		al_end = al.Position;
+                            		al_start = al_end - al.InsertSize;
+								}                            		
                                 CHRPOS s = max(al.Position, (int) bed.start);
                                 CHRPOS e = min(al_end, (int) bed.end);
                                 CHRPOS aLength = (bed.end - bed.start);
