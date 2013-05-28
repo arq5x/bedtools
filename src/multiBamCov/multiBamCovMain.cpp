@@ -46,6 +46,7 @@ int multibamcov_main(int argc, char* argv[]) {
     float overlapFraction = 1E-9;
     bool haveFraction       = false;
     bool reciprocalFraction = false;
+    bool extendOneRead		= false;
      
     // check to see if we should print out some help
     if(argc <= 1) showHelp = true;
@@ -121,11 +122,21 @@ int multibamcov_main(int argc, char* argv[]) {
         else if (PARAMETER_CHECK("-S", 2, parameterLength)) {
             diffStrand = true;
         }
+        else if (PARAMETER_CHECK("-E", 2, parameterLength)) {
+            extendOneRead = true;
+        }
         else {
             cerr << endl << "*****ERROR: Unrecognized parameter: " << 
                 argv[i] << " *****" << endl << endl;
             showHelp = true;
         }
+        
+        if (extendOneRead && (sameStrand || diffStrand)) 
+           cerr << endl << "*****ERROR: read extension cannot be used with strand constrains" << endl;
+        if (extendOneRead && obeySplits) 
+           cerr << endl << "*****ERROR: read extension cannot be used with split option" << endl;
+    	
+
     }
 
     if (!showHelp) {
@@ -134,7 +145,7 @@ int multibamcov_main(int argc, char* argv[]) {
                                           keepDuplicates, keepFailedQC,
                                           obeySplits, sameStrand,
                                           diffStrand, overlapFraction,
-                                          reciprocalFraction);
+                                          reciprocalFraction, extendOneRead);
         mc->CollectCoverage();
         delete mc;
     }
@@ -184,6 +195,8 @@ void multibamcov_help(void) {
 
     cerr << "\t-p\t"           << "Only count proper pairs.  Default counts all alignments with" << endl;
     cerr << "\t\t"             << "MAPQ > -q argument, regardless of the BAM FLAG field." << endl << endl;
+
+    cerr << "\t-E\t"           << "Extend one read (R1) to the extent of insert size" << endl << endl;
 
     // end the program here
     exit(1);

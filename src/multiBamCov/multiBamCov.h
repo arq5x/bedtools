@@ -36,7 +36,7 @@ public:
                 bool keepDuplicates, bool keepFailedQC,
                 bool obeySplits, bool sameStrand,
                 bool diffStrand, float overlapFraction,
-                bool reciprocal);
+                bool reciprocal, bool extendOneRead);
 
     // destructor
     ~MultiCovBam(void);
@@ -62,6 +62,7 @@ private:
     bool _diffStrand;
     float _overlapFraction;
     bool _reciprocal;
+    bool _extendOneRead;
 
 
     map<string, int> bamFileMap;
