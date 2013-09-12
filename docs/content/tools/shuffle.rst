@@ -212,14 +212,15 @@ no such overlaps.
 ``-allowBeyondChromEnd`` Allow records to extend beyond the chrom. length.
 ==========================================================================
 By default, ``shuffle`` requires that an interval's original length must be 
-fully-contained within the chromosome. Yet here are cases where you might 
+fully-contained within the chromosome. Yet there are cases where you might 
 want to allow shuffled intervals to be relocated to a position
 in which the entire original interval cannot fit w/o exceeding
 the end of the chromosome.  By using the ``-noOverlapping`` option, 
-``shuffle`` will intervals to be shuffle to locations that are so close
+``shuffle`` will allow intervals to be shuffled to locations that are so close
 to the chromosome end that the full length of the original record cannot
 be contained within the chromosome length.  In such cases, the end coordinate
-for the shuffled interval will be set to the chromosome's length.
+for the shuffled interval will be set (i.e., truncated) 
+to the chromosome's length.
 
 .. code-block:: bash
 
