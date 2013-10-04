@@ -132,9 +132,9 @@ void BedMerge::Report(string chrom, int start,
     // merged intervals, counts, and scores
     else if (_numEntries == true && _reportNames == false && 
         _reportScores == true) {
-        printf("\t%d", mergeCount);
+        printf("\t");
         ReportMergedScores(scores);
-        printf("\n");
+        printf("\t%d\n", mergeCount);
     }
     // merged intervals, counts, and names
     else if (_numEntries == true && _reportNames == true && 
@@ -186,19 +186,19 @@ void BedMerge::ReportStranded(string chrom, int start,
     // just the merged intervals
     if (_numEntries == false && _reportNames == false && 
         _reportScores == false) {
-        printf("\t%s\n", strand.c_str());
+        printf("\t\t\t%s\n", strand.c_str());
     }
     // merged intervals and counts    
     else if (_numEntries == true && _reportNames == false &&
         _reportScores == false) {
-        printf("\t%d\t%s\n", mergeCount, strand.c_str());
+        printf("\t\t%d\t%s\n", mergeCount, strand.c_str());
     }
     // merged intervals, counts, and scores
     else if (_numEntries == true && _reportNames == false &&
         _reportScores == true) {
-        printf("\t%d", mergeCount);
+        printf("\t");
         ReportMergedScores(scores);
-        printf("\t%s\n", strand.c_str());
+        printf("\t%s\t%d\n", strand.c_str(), mergeCount);
     }
     // merged intervals, counts, and names
     else if (_numEntries == true && _reportNames == true &&
@@ -219,11 +219,12 @@ void BedMerge::ReportStranded(string chrom, int start,
     else if (_numEntries == false && _reportNames == true &&
         _reportScores == false) {
         ReportMergedNames(names);
-        printf("\t%s\n", strand.c_str());
+        printf("\t\t%s\n", strand.c_str());
     }
     // merged intervals and scores        
     else if (_numEntries == false && _reportNames == false && 
         _reportScores == true) {
+        printf("\t");
         ReportMergedScores(scores);
         printf("\t%s\n", strand.c_str());
     }
