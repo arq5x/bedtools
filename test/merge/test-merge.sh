@@ -168,3 +168,37 @@ chr1	30	100	a2|a3|a4" > exp
 $BT merge -i a.names.bed -nms -delim "|" > obs
 check obs exp
 rm obs exp
+
+###########################################################
+# -s, -n, and -nms, 
+###########################################################
+echo "    merge.t11...\c"
+echo \
+"chr1	10	20	a1	1	+
+chr1	30	40	a2	1	+
+chr1	45	100	a4	1	+
+chr1	40	50	a3	1	-
+chr2	10	20	a1	1	+
+chr2	30	40	a2	1	+
+chr2	42	50	a3	1	+
+chr2	45	100	a4	1	-" > exp
+$BT merge -i a.full.bed -s -nms -n > obs
+check obs exp
+rm obs exp
+
+###########################################################
+# -s, -n, and -scores sum
+###########################################################
+echo "    merge.t12...\c"
+echo \
+"chr1	10	20	1	1	+
+chr1	30	40	1	2	+
+chr1	45	100	1	4	+
+chr1	40	50	1	3	-
+chr2	10	20	1	5	+
+chr2	30	40	1	6	+
+chr2	42	50	1	7	+
+chr2	45	100	1	8	-" > exp
+$BT merge -i a.full.bed -s -n -scores sum> obs
+check obs exp
+rm obs exp
