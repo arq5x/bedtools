@@ -132,9 +132,9 @@ void BedMerge::Report(string chrom, int start,
     // merged intervals, counts, and scores
     else if (_numEntries == true && _reportNames == false && 
         _reportScores == true) {
-        printf("\t");
+        printf("\t%d", mergeCount);
         ReportMergedScores(scores);
-        printf("\t%d\n", mergeCount);
+        printf("\n");
     }
     // merged intervals, counts, and names
     else if (_numEntries == true && _reportNames == true && 
@@ -196,9 +196,9 @@ void BedMerge::ReportStranded(string chrom, int start,
     // merged intervals, counts, and scores
     else if (_numEntries == true && _reportNames == false &&
         _reportScores == true) {
-        printf("\t");
+        printf("\t%d", mergeCount);
         ReportMergedScores(scores);
-        printf("\t%s\t%d\n", strand.c_str(), mergeCount);
+        printf("\t%s\n", strand.c_str());
     }
     // merged intervals, counts, and names
     else if (_numEntries == true && _reportNames == true &&
