@@ -45,7 +45,7 @@ Option                           Description
 **-s**				             Force strandedness. That is, only merge features that are the same strand. *By default, this is disabled*.
 **-n**					         Report the number of BED entries that were merged. *1 is reported if no merging occurred*.
 **-d**                           Maximum distance between features allowed for features to be merged. *Default is 0. That is, overlapping and/or book-ended features are merged*.
-**-nms**                         Report the names of the merged features separated by commas.  Change delimiter with ``-delim``
+**-nms**                         Report the names of the merged features separated by semicolons.  Change delimiter with ``-delim``
 
 **-scores**                      | Report the scores of the merged features. 
                                  | Specify one of the following options for reporting scores:
