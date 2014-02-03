@@ -65,7 +65,7 @@ reported after the complete feature in the file to be annotated.
 
 
 ==========================================================================
-``-count`` Report the count of hits from the annotation files
+``-counts`` Report the count of hits from the annotation files
 ==========================================================================
 
 .. code-block:: bash
