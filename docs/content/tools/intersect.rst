@@ -132,7 +132,7 @@ For example (-wb alone):
   chr1  15   20
 
   $ bedtools intersect -a A.bed -b B.bed -wb
-  chr1  15  20  chr 15  20
+  chr1  15  20  chr1 15  20
   
 
 Now -wa and -wb:
@@ -147,7 +147,7 @@ Now -wa and -wb:
   chr1  15   20
 
   $ bedtools intersect -a A.bed -b B.bed -wa -wb
-  chr1  10  20  chr 15  20
+  chr1  10  20  chr1 15  20
 
 ========================================================================
 ``-loj`` Left outer join. Report features in A with and without overlaps
@@ -169,8 +169,8 @@ For example (*without* ``-loj``):
   $ cat B.bed
   chr1  15   20
   
-  $ bedtools intersect -a A.bed -b B.bed
-  chr1  10  20  chr 15  20
+  $ bedtools intersect -a A.bed -b B.bed -wa -wb
+  chr1  10  20  chr1 15  20
   
 Now *with* ``-loj``:
 
@@ -184,7 +184,7 @@ Now *with* ``-loj``:
     chr1  15   20
 
     $ bedtools intersect -a A.bed -b B.bed -loj
-    chr1  10  20  chr 15  20
+    chr1  10  20  chr1 15  20
     chr1  30  40  . -1  -1
 
 
@@ -257,7 +257,7 @@ For example, without ``-u``:
     chr1  15  20
     chr1  17  22
 
-    $ bedtools intersect -a A.bed -b B.bed
+    $ bedtools intersect -a A.bed -b B.bed -wa
     chr1  10   20
     chr1  10   20
     
