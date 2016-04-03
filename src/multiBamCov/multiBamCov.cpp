@@ -22,7 +22,7 @@ MultiCovBam::MultiCovBam(const vector<string> &bam_files, const string bed_file,
                          bool keepDuplicates, bool keepFailedQC,
                          bool obeySplits, bool sameStrand, 
                          bool diffStrand, float overlapFraction,
-                         bool reciprocal)
+                         bool reciprocal, bool extendOneRead)
 :
 _bam_files(bam_files),
 _bed_file(bed_file),
@@ -34,7 +34,8 @@ _obeySplits(obeySplits),
 _sameStrand(sameStrand),
 _diffStrand(diffStrand),
 _overlapFraction(overlapFraction),
-_reciprocal(reciprocal)
+_reciprocal(reciprocal),
+_extendOneRead(extendOneRead)
 {
 	_bed = new BedFile(_bed_file);
     LoadBamFileMap();
@@ -157,6 +158,8 @@ void MultiCovBam::CollectCoverage()
                                 (_diffStrand && strands_are_same)   || 
                                 (al.MapQuality < _minQual)          ||
                                 (duplicate)                         ||
+                                (_extendOneRead && al.IsSecondMate()) ||
+                                (_extendOneRead && !al.IsProperPair()) ||
                                 (failedQC)
                             )
                             {
@@ -184,6 +187,32 @@ void MultiCovBam::CollectCoverage()
                                     else if (bOverlap >= _overlapFraction)
                                         counts[bamFileMap[al.Filename]]++;
                                 }
+                            }
+                            else if (_extendOneRead) {
+                            	int al_start = al.Position;
+                            	if (al.IsReverseStrand()) 
+                            		al_start = al.MatePosition;
+								
+								int al_end = al.InsertSize + al_start;
+                            	                            		
+                                CHRPOS s = max(al.Position, (int) bed.start);
+                                CHRPOS e = min(al_end, (int) bed.end);
+                                CHRPOS aLength = (bed.end - bed.start);
+                                CHRPOS bLength = (al_end - al.Position);
+                                int overlapBases = (e - s);
+                                float aOverlap = 
+                                    ( (float) overlapBases / (float) aLength );
+                                float bOverlap = 
+                                    ( (float) overlapBases / (float) bLength );
+                                
+                                if ( aOverlap >= _overlapFraction) 
+                                {
+                                    if (!_reciprocal)
+                                        counts[bamFileMap[al.Filename]]++;
+                                    else if (bOverlap >= _overlapFraction)
+                                        counts[bamFileMap[al.Filename]]++;
+                                }
+                            	
                             }
                             else {
                                 // break alignment into discrete blocks,
