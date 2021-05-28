@@ -68,7 +68,7 @@ Option                           Description
                                  | **distinct** (i.e., print a comma separated list) - *numeric or text*
                                  | **concat** (i.e., print a comma separated list) - *numeric or text*
                                  |
-                                 | ``Default: 5``
+                                 | ``Default: sum``
 
 **-f**		                     Minimum overlap required as a fraction of A. Default is 1E-9 (i.e. 1bp).
 **-r**		                     Require that the fraction of overlap be reciprocal for A and B. In other words, if -f is 0.90 and -r is used, this requires that B overlap at least 90% of A and that A also overlaps at least 90% of B.
